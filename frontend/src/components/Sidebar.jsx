@@ -1,0 +1,80 @@
+import { 
+  LayoutDashboard, 
+  UtensilsCrossed, 
+  Users, 
+  Tag, 
+  ShoppingCart, 
+  ClipboardList, 
+  Printer, 
+  UserCog, 
+  Wallet, 
+  BarChart3,
+  X 
+} from 'lucide-react';
+import { NavLink } from './NavLink';
+
+const menuItems = [
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+  { icon: UtensilsCrossed, label: 'Menu Categories', path: '/menu' },
+  { icon: Users, label: 'Customers', path: '/customers' },
+  { icon: Tag, label: 'Offers', path: '/offers' },
+  { icon: ShoppingCart, label: 'POS', path: '/pos' },
+  { icon: ClipboardList, label: 'Past Orders', path: '/pastorders' },
+  { icon: Printer, label: 'KOT Printer Settings', path: '/KOTPrinterSettings' },
+  { icon: UserCog, label: 'Staff', path: '/StaffManagement' },
+  { icon: Wallet, label: 'Expenses', path: '/ExpensesManagement' },
+  { icon: BarChart3, label: 'Reports', path: '/ReportsPage' },
+];
+
+const Sidebar = ({ isOpen, onClose }) => {
+  return (
+    <>
+      {/* Overlay for mobile */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed lg:sticky top-0 lg:top-16 left-0 h-screen lg:h-[calc(100vh-4rem)] bg-sidebar border-r border-sidebar-border z-50 transition-transform duration-300 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        } w-64 flex flex-col`}
+      >
+        {/* Close button for mobile */}
+        <div className="lg:hidden flex justify-end p-4">
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-secondary rounded-lg transition-colors"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5 text-sidebar-foreground" />
+          </button>
+        </div>
+
+        {/* Menu Items */}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
+          <ul className="space-y-1">
+            {menuItems.map((item) => (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sidebar-foreground hover:bg-secondary transition-all duration-200"
+                  activeClassName="bg-primary text-primary-foreground font-medium shadow-sm"
+                  onClick={() => onClose()}
+                >
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  <span className="text-sm">{item.label}</span>
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
+    </>
+  );
+};
+
+export default Sidebar;
