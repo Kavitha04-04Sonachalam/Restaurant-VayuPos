@@ -1,6 +1,5 @@
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
@@ -8,15 +7,18 @@ load_dotenv()
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./test.db")
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
-    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    JWT_EXPIRATION: int = int(os.getenv("JWT_EXPIRATION", "3600"))  # 1 hour in seconds
+    DATABASE_URL: str = "sqlite:///./test.db"
+    SECRET_KEY: str = "your-secret-key-change-this-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION: int = 3600  # 1 hour in seconds
     
     # Additional settings
-    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
+    DEBUG: bool = False
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Restaurant VayuPos"
+    app_name: str = "POS Backend API"
+    app_version: str = "1.0.0"
+    cors_origins: list = ["*"]
     
     class Config:
         env_file = ".env"
@@ -24,3 +26,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def get_settings() -> Settings:
+    """Get application settings"""
+    return settings

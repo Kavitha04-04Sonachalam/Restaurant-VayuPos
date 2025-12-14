@@ -60,3 +60,32 @@ class InternalServerErrorException(HTTPException):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=detail,
         )
+
+
+# Helper functions for raising exceptions
+def not_found_exception(detail: str = "Resource not found"):
+    """Raise a NotFoundException"""
+    raise NotFoundException(detail)
+
+
+def bad_request_exception(detail: str = "Bad request"):
+    """Raise a BadRequestException"""
+    raise BadRequestException(detail)
+
+
+def conflict_exception(detail: str = "Resource already exists"):
+    """Raise a ConflictException"""
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=detail,
+    )
+
+
+def unauthorized_exception(detail: str = "Not authenticated"):
+    """Raise an UnauthorizedException"""
+    raise UnauthorizedException(detail)
+
+
+def forbidden_exception(detail: str = "Forbidden"):
+    """Raise a ForbiddenException"""
+    raise ForbiddenException(detail)
