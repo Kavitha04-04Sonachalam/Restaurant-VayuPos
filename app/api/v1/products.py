@@ -1,0 +1,196 @@
+"""Products and Categories API routes"""
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from app.api.dependencies import get_current_user, get_db
+from app.services import ProductService, CategoryService
+from app.schemas import (
+    ProductCreate,
+    ProductUpdate,
+    ProductResponse,
+    CategoryCreate,
+    CategoryUpdate,
+    CategoryResponse,
+)
+
+router = APIRouter(prefix="", tags=["Products"])
+
+
+# Helper functions
+def category_to_dict(category):
+    """Convert Category ORM to dict"""
+    return {
+        "id": category.id,
+        "name": category.name,
+        "description": category.description,
+        "is_active": category.is_active,
+        "created_at": category.created_at.isoformat() if category.created_at else None,
+        "updated_at": category.updated_at.isoformat() if category.updated_at else None,
+    }
+
+
+def product_to_dict(product, include_category=True):
+    """Convert Product ORM to dict"""
+    result = {
+        "id": product.id,
+        "sku": product.sku,
+        "name": product.name,
+        "description": product.description,
+        "barcode": product.barcode,
+        "price": float(product.price),
+        "cost_price": float(product.cost_price) if product.cost_price else None,
+        "stock_quantity": product.stock_quantity,
+        "min_stock_level": product.min_stock_level,
+        "is_active": product.is_active,
+        "image_url": product.image_url,
+        "category_id": product.category_id,
+        "created_at": product.created_at.isoformat() if product.created_at else None,
+        "updated_at": product.updated_at.isoformat() if product.updated_at else None,
+    }
+    
+    # Only include category if requested and available
+    if include_category and product.category:
+        result["category"] = category_to_dict(product.category)
+    
+    return result
+
+
+# ============= Category Routes =============
+@router.post("/categories")
+def create_category(
+    category_create: CategoryCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a new category"""
+    category = CategoryService.create_category(db, category_create)
+    return category_to_dict(category)
+
+
+@router.get("/categories")
+def list_categories(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
+    """List all categories"""
+    categories, total = CategoryService.list_categories(db, skip, limit)
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "data": [category_to_dict(cat) for cat in categories],
+    }
+
+
+@router.get("/categories/{category_id}")
+def get_category(category_id: int, db: Session = Depends(get_db)):
+    """Get category by ID"""
+    category = CategoryService.get_category_by_id(db, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return category_to_dict(category)
+
+
+@router.put("/categories/{category_id}")
+def update_category(
+    category_id: int,
+    category_update: CategoryUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update category"""
+    category = CategoryService.update_category(db, category_id, category_update)
+    return category_to_dict(category)
+
+
+@router.delete("/categories/{category_id}")
+def delete_category(
+    category_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete category"""
+    CategoryService.delete_category(db, category_id)
+    return {"message": "Category deleted successfully"}
+
+
+# ============= Product Routes =============
+@router.post("/products")
+def create_product(
+    product_create: ProductCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a new product"""
+    product = ProductService.create_product(db, product_create, int(current_user["sub"]))
+    return product_to_dict(product)
+
+
+@router.get("/products")
+def list_products(
+    skip: int = 0,
+    limit: int = 100,
+    category_id: int = None,
+    is_active: bool = None,
+    db: Session = Depends(get_db),
+):
+    """List all products"""
+    products, total = ProductService.list_products(db, skip, limit, category_id, is_active)
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "data": [product_to_dict(p, include_category=False) for p in products],
+    }
+
+
+@router.get("/products/low-stock")
+def get_low_stock_products(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get products with low stock"""
+    products = ProductService.get_low_stock_products(db)
+    return [product_to_dict(p, include_category=False) for p in products]
+
+
+@router.get("/products/search")
+def search_products(
+    q: str,
+    db: Session = Depends(get_db),
+):
+    """Search products by name, SKU, or barcode"""
+    products = ProductService.search_products(db, q)
+    return [product_to_dict(p, include_category=False) for p in products]
+
+
+@router.get("/products/{product_id}")
+def get_product(product_id: int, db: Session = Depends(get_db)):
+    """Get product by ID"""
+    product = ProductService.get_product_by_id(db, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product_to_dict(product)
+
+
+@router.put("/products/{product_id}")
+def update_product(
+    product_id: int,
+    product_update: ProductUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update product"""
+    product = ProductService.update_product(db, product_id, product_update)
+    return product_to_dict(product)
+
+
+@router.delete("/products/{product_id}")
+def delete_product(
+    product_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete product"""
+    ProductService.delete_product(db, product_id)
+    return {"message": "Product deleted successfully"}

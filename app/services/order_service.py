@@ -1,0 +1,208 @@
+"""Order service"""
+from sqlalchemy.orm import Session
+from app.models import Order, OrderItem, OrderStatus, Product, Customer, InventoryAction
+from app.schemas import OrderCreate, OrderUpdate
+from app.core.exceptions import not_found_exception, bad_request_exception
+from app.services.inventory_service import InventoryService
+from typing import Optional, Tuple
+from decimal import Decimal
+from datetime import datetime
+import uuid
+
+
+class OrderService:
+    """Service for order operations"""
+
+    @staticmethod
+    def _generate_order_number() -> str:
+        """Generate unique order number"""
+        return f"ORD-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+
+    @staticmethod
+    def create_order(db: Session, order_create: OrderCreate, user_id: int) -> Order:
+        """Create a new order"""
+        # Validate customer if provided
+        if order_create.customer_id:
+            customer = db.query(Customer).filter(Customer.id == order_create.customer_id).first()
+            if not customer:
+                raise not_found_exception("Customer not found")
+
+        # Validate order items
+        if not order_create.order_items:
+            raise bad_request_exception("Order must have at least one item")
+
+        # Calculate order totals
+        subtotal = Decimal("0")
+        order_items_data = []
+
+        for item in order_create.order_items:
+            product = db.query(Product).filter(Product.id == item.product_id).first()
+            if not product:
+                raise not_found_exception(f"Product {item.product_id} not found")
+
+            unit_price = item.unit_price or product.price
+            item_subtotal = unit_price * item.quantity - item.discount
+            subtotal += item_subtotal
+
+            order_items_data.append({
+                "product": product,
+                "item": item,
+                "unit_price": unit_price,
+                "subtotal": item_subtotal,
+            })
+
+        # Calculate totals
+        tax = order_create.tax or Decimal("0")
+        discount = order_create.discount or Decimal("0")
+        total = subtotal + tax - discount
+
+        # Create order
+        db_order = Order(
+            order_number=OrderService._generate_order_number(),
+            customer_id=order_create.customer_id,
+            user_id=user_id,
+            subtotal=subtotal,
+            tax=tax,
+            discount=discount,
+            total=total,
+            notes=order_create.notes,
+        )
+
+        db.add(db_order)
+        db.flush()  # Flush to get the order ID
+
+        # Create order items and reduce inventory
+        for item_data in order_items_data:
+            product = item_data["product"]
+            item = item_data["item"]
+            unit_price = item_data["unit_price"]
+
+            # Check stock
+            if product.stock_quantity < item.quantity:
+                raise bad_request_exception(
+                    f"Insufficient stock for {product.name}. Available: {product.stock_quantity}, Requested: {item.quantity}"
+                )
+
+            order_item = OrderItem(
+                order_id=db_order.id,
+                product_id=product.id,
+                product_name=product.name,
+                product_sku=product.sku,
+                quantity=item.quantity,
+                unit_price=unit_price,
+                discount=item.discount or Decimal("0"),
+                subtotal=item_data["subtotal"],
+            )
+
+            db.add(order_item)
+
+            # Log inventory out
+            InventoryService.log_inventory_change(
+                db=db,
+                product_id=product.id,
+                user_id=user_id,
+                action=InventoryAction.SALE,
+                quantity_change=-item.quantity,
+                reference_number=db_order.order_number,
+                notes=f"Sold via order {db_order.order_number}",
+            )
+
+        db.commit()
+        db.refresh(db_order)
+        return db_order
+
+    @staticmethod
+    def get_order_by_id(db: Session, order_id: int) -> Optional[Order]:
+        """Get order by ID"""
+        return db.query(Order).filter(Order.id == order_id).first()
+
+    @staticmethod
+    def get_order_by_number(db: Session, order_number: str) -> Optional[Order]:
+        """Get order by order number"""
+        return db.query(Order).filter(Order.order_number == order_number).first()
+
+    @staticmethod
+    def update_order(db: Session, order_id: int, order_update: OrderUpdate) -> Order:
+        """Update order"""
+        order = OrderService.get_order_by_id(db, order_id)
+        if not order:
+            raise not_found_exception("Order not found")
+
+        update_data = order_update.dict(exclude_unset=True)
+
+        # Only allow updating certain fields
+        allowed_fields = {"customer_id", "status", "discount", "tax", "notes"}
+        for field in list(update_data.keys()):
+            if field not in allowed_fields:
+                del update_data[field]
+
+        # If status is changing to COMPLETED, set completed_at
+        if order_update.status == OrderStatus.COMPLETED and order.status != OrderStatus.COMPLETED:
+            update_data["completed_at"] = datetime.utcnow()
+
+        for field, value in update_data.items():
+            setattr(order, field, value)
+
+        # Recalculate total if tax or discount changed
+        if "tax" in update_data or "discount" in update_data:
+            order.total = order.subtotal + order.tax - order.discount
+
+        db.commit()
+        db.refresh(order)
+        return order
+
+    @staticmethod
+    def cancel_order(db: Session, order_id: int, user_id: int) -> Order:
+        """Cancel an order and restore inventory"""
+        order = OrderService.get_order_by_id(db, order_id)
+        if not order:
+            raise not_found_exception("Order not found")
+
+        if order.status == OrderStatus.CANCELLED:
+            raise bad_request_exception("Order is already cancelled")
+
+        # Restore inventory
+        for item in order.order_items:
+            InventoryService.log_inventory_change(
+                db=db,
+                product_id=item.product_id,
+                user_id=user_id,
+                action=InventoryAction.RETURN,
+                quantity_change=item.quantity,
+                reference_number=order.order_number,
+                notes=f"Return from cancelled order {order.order_number}",
+            )
+
+        order.status = OrderStatus.CANCELLED
+        db.commit()
+        db.refresh(order)
+        return order
+
+    @staticmethod
+    def list_orders(
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+        status: Optional[OrderStatus] = None,
+        customer_id: Optional[int] = None,
+    ) -> Tuple[list[Order], int]:
+        """List orders with pagination and filters"""
+        query = db.query(Order)
+
+        if status is not None:
+            query = query.filter(Order.status == status)
+
+        if customer_id is not None:
+            query = query.filter(Order.customer_id == customer_id)
+
+        query = query.order_by(Order.created_at.desc())
+        total = query.count()
+        orders = query.offset(skip).limit(limit).all()
+        return orders, total
+
+    @staticmethod
+    def get_customer_orders(db: Session, customer_id: int, limit: int = 50) -> list[Order]:
+        """Get all orders for a customer"""
+        return db.query(Order).filter(Order.customer_id == customer_id).order_by(
+            Order.created_at.desc()
+        ).limit(limit).all()

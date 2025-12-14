@@ -1,0 +1,49 @@
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from app.core.config import get_settings
+
+# Get settings which loads .env file
+settings = get_settings()
+
+# Database URL from settings
+DATABASE_URL = settings.DATABASE_URL
+
+# Create engine
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20
+)
+
+# Create SessionLocal class
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Create Base class
+Base = declarative_base()
+
+# Import all models to register them with Base
+# This must be done before create_all()
+from app.models.user import User
+from app.models.category import Category
+from app.models.product import Product
+from app.models.customer import Customer
+from app.models.order import Order
+from app.models.order_item import OrderItem
+from app.models.payment import Payment
+from app.models.inventory_log import InventoryLog
+
+# Dependency to get DB session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def init_db():
+    """Initialize database by creating all tables"""
+    Base.metadata.create_all(bind=engine)
