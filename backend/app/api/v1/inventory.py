@@ -1,86 +1,71 @@
-"""Inventory API routes"""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.api.dependencies import get_current_user, get_db
-from app.services import InventoryService
-from app.schemas import InventoryLogCreate, InventoryLogResponse
+from typing import List
+
+from app.core.database import get_db
+from app.core.dependencies import get_current_user
+from app.schemas.inventory import InventoryLogCreate, InventoryLogResponse
+from app.services.inventory_service import InventoryService
+
 
 router = APIRouter(prefix="/inventory", tags=["Inventory"])
 
 
+# -------- CREATE LOG --------
 @router.post("/logs", response_model=InventoryLogResponse)
 def create_inventory_log(
-    inventory_log_create: InventoryLogCreate,
+    product_id: int,                          # ?product_id=4
+    data: InventoryLogCreate,                # body JSON
+    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db),
 ):
-    """Create inventory log"""
-    log = InventoryService.create_inventory_log(db, inventory_log_create, int(current_user["sub"]))
-    return log
+    try:
+        return InventoryService.create_inventory_log(
+            db,
+            product_id,
+            int(current_user["id"]),          # current_user is dict
+            data,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/logs", response_model=dict)
+# -------- GET ALL LOGS --------
+@router.get("/logs", response_model=List[InventoryLogResponse])
 def list_inventory_logs(
-    skip: int = 0,
-    limit: int = 100,
-    product_id: int = None,
-    action: str = None,
-    days: int = None,
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    """List inventory logs"""
-    logs, total = InventoryService.list_inventory_logs(db, skip, limit, product_id, action, days)
-    return {
-        "total": total,
-        "skip": skip,
-        "limit": limit,
-        "data": logs,
-    }
+    return InventoryService.get_all_logs(db)
 
 
+# -------- GET ONE LOG BY ID --------
 @router.get("/logs/{log_id}", response_model=InventoryLogResponse)
-def get_inventory_log(log_id: int, db: Session = Depends(get_db)):
-    """Get inventory log by ID"""
-    log = InventoryService.get_inventory_log_by_id(db, log_id)
+def get_inventory_log(
+    log_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    log = InventoryService.get_log_by_id(db, log_id)
     if not log:
-        raise HTTPException(status_code=404, detail="Inventory log not found")
+        raise HTTPException(status_code=404, detail="Log not found")
     return log
 
 
-@router.get("/product/{product_id}/history", response_model=list)
+# -------- GET PRODUCT INVENTORY HISTORY --------
+@router.get("/product/{product_id}/history", response_model=List[InventoryLogResponse])
 def get_product_inventory_history(
     product_id: int,
-    limit: int = 50,
     db: Session = Depends(get_db),
-):
-    """Get inventory history for a product"""
-    history = InventoryService.get_product_inventory_history(db, product_id, limit)
-    return history
-
-
-@router.post("/product/{product_id}/adjust")
-def adjust_stock(
-    product_id: int,
-    new_quantity: int,
-    notes: str = "Stock adjustment",
     current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db),
 ):
-    """Adjust product stock"""
-    log = InventoryService.adjust_stock(db, product_id, new_quantity, int(current_user["sub"]), notes)
-    return {
-        "message": "Stock adjusted successfully",
-        "log_id": log.id,
-        "quantity_before": log.quantity_before,
-        "quantity_after": log.quantity_after,
-    }
+    return InventoryService.get_product_history(db, product_id)
 
 
-@router.get("/summary", response_model=dict)
+# -------- INVENTORY SUMMARY --------
+@router.get("/summary")
 def get_inventory_summary(
-    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    """Get inventory summary"""
-    summary = InventoryService.get_inventory_summary(db)
-    return summary
+    return InventoryService.get_inventory_summary(db)

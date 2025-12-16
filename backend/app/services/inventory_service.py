@@ -1,150 +1,95 @@
-"""Inventory service"""
 from sqlalchemy.orm import Session
-from app.models import InventoryLog, Product, InventoryAction
-from app.schemas import InventoryLogCreate
-from app.core.exceptions import not_found_exception, bad_request_exception
-from typing import Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime
+
+from app.models.inventory_log import InventoryLog
+from app.models.product import Product
+from app.schemas.inventory import InventoryLogCreate
 
 
 class InventoryService:
-    """Service for inventory operations"""
 
     @staticmethod
-    def log_inventory_change(
+    def create_inventory_log(
         db: Session,
         product_id: int,
-        user_id: Optional[int],
-        action: InventoryAction,
-        quantity_change: int,
-        reference_number: Optional[str] = None,
-        notes: Optional[str] = None,
-    ) -> InventoryLog:
-        """Log inventory change"""
+        user_id: int,
+        data: InventoryLogCreate,
+    ):
+        # 1. Load product
         product = db.query(Product).filter(Product.id == product_id).first()
         if not product:
-            raise not_found_exception("Product not found")
+            raise ValueError("Product not found")
 
-        quantity_before = product.stock_quantity
-        quantity_after = quantity_before + quantity_change
+        # 2. Validate action
+        if data.action not in ["stock_in", "stock_out"]:
+            raise ValueError("Invalid action")
 
-        # Prevent negative stock
-        if quantity_after < 0:
-            raise bad_request_exception(
-                f"Cannot reduce stock below 0. Current stock: {quantity_before}, Requested change: {quantity_change}"
-            )
+        # 3. Current quantity (note: stock_quantity)
+        qty_before = product.stock_quantity
 
-        # Update product stock
-        product.stock_quantity = quantity_after
+        # 4. Compute after quantity
+        if data.action == "stock_in":
+            qty_after = qty_before + data.quantity_change
+        else:  # stock_out
+            if qty_before < data.quantity_change:
+                raise ValueError("Insufficient stock")
+            qty_after = qty_before - data.quantity_change
 
-        # Create log entry
+        # 5. Create log row
         log = InventoryLog(
             product_id=product_id,
             user_id=user_id,
-            action=action,
-            quantity_change=quantity_change,
-            quantity_before=quantity_before,
-            quantity_after=quantity_after,
-            reference_number=reference_number,
-            notes=notes,
+            action=data.action.upper(),  # store as STOCK_IN / STOCK_OUT
+            quantity_change=data.quantity_change,
+            quantity_before=qty_before,
+            quantity_after=qty_after,
+            reference_number=data.reference_number,
+            notes=data.notes,
+            created_at=datetime.utcnow(),
         )
+
+        # 6. Update product stock
+        product.stock_quantity = qty_after
 
         db.add(log)
         db.commit()
         db.refresh(log)
+
         return log
 
     @staticmethod
-    def create_inventory_log(db: Session, inventory_log_create: InventoryLogCreate, user_id: int) -> InventoryLog:
-        """Create inventory log"""
-        return InventoryService.log_inventory_change(
-            db=db,
-            product_id=inventory_log_create.product_id,
-            user_id=user_id,
-            action=inventory_log_create.action,
-            quantity_change=inventory_log_create.quantity_change,
-            reference_number=inventory_log_create.reference_number,
-            notes=inventory_log_create.notes,
+    def get_all_logs(db: Session):
+        return (
+            db.query(InventoryLog)
+            .order_by(InventoryLog.created_at.desc())
+            .all()
         )
 
     @staticmethod
-    def get_inventory_log_by_id(db: Session, log_id: int) -> Optional[InventoryLog]:
-        """Get inventory log by ID"""
-        return db.query(InventoryLog).filter(InventoryLog.id == log_id).first()
-
-    @staticmethod
-    def list_inventory_logs(
-        db: Session,
-        skip: int = 0,
-        limit: int = 100,
-        product_id: Optional[int] = None,
-        action: Optional[InventoryAction] = None,
-        days: Optional[int] = None,
-    ) -> Tuple[list[InventoryLog], int]:
-        """List inventory logs with filters"""
-        query = db.query(InventoryLog)
-
-        if product_id is not None:
-            query = query.filter(InventoryLog.product_id == product_id)
-
-        if action is not None:
-            query = query.filter(InventoryLog.action == action)
-
-        if days is not None:
-            cutoff_date = datetime.utcnow() - timedelta(days=days)
-            query = query.filter(InventoryLog.created_at >= cutoff_date)
-
-        query = query.order_by(InventoryLog.created_at.desc())
-        total = query.count()
-        logs = query.offset(skip).limit(limit).all()
-        return logs, total
-
-    @staticmethod
-    def get_product_inventory_history(
-        db: Session, product_id: int, limit: int = 50
-    ) -> list[InventoryLog]:
-        """Get inventory history for a product"""
-        return db.query(InventoryLog).filter(InventoryLog.product_id == product_id).order_by(
-            InventoryLog.created_at.desc()
-        ).limit(limit).all()
-
-    @staticmethod
-    def adjust_stock(
-        db: Session,
-        product_id: int,
-        new_quantity: int,
-        user_id: int,
-        notes: str = "Stock adjustment",
-    ) -> InventoryLog:
-        """Adjust product stock to a specific quantity"""
-        product = db.query(Product).filter(Product.id == product_id).first()
-        if not product:
-            raise not_found_exception("Product not found")
-
-        quantity_change = new_quantity - product.stock_quantity
-
-        return InventoryService.log_inventory_change(
-            db=db,
-            product_id=product_id,
-            user_id=user_id,
-            action=InventoryAction.ADJUSTMENT,
-            quantity_change=quantity_change,
-            notes=notes,
+    def get_log_by_id(db: Session, log_id: int):
+        return (
+            db.query(InventoryLog)
+            .filter(InventoryLog.id == log_id)
+            .first()
         )
 
     @staticmethod
-    def get_inventory_summary(db: Session) -> dict:
-        """Get inventory summary statistics"""
-        total_products = db.query(Product).filter(Product.is_active == True).count()
-        low_stock_products = db.query(Product).filter(
-            (Product.stock_quantity <= Product.min_stock_level) & (Product.is_active == True)
-        ).count()
-        out_of_stock = db.query(Product).filter(
-            (Product.stock_quantity == 0) & (Product.is_active == True)
-        ).count()
+    def get_product_history(db: Session, product_id: int):
+        return (
+            db.query(InventoryLog)
+            .filter(InventoryLog.product_id == product_id)
+            .order_by(InventoryLog.created_at.desc())
+            .all()
+        )
 
-        return {
-            "total_products": total_products,
-            "low_stock_count": low_stock_products,
-            "out_of_stock_count": out_of_stock,
-        }
+    @staticmethod
+    def get_inventory_summary(db: Session):
+        products = db.query(Product).all()
+        return [
+            {
+                "product_id": p.id,
+                "product_name": p.name,
+                "quantity": p.stock_quantity,
+            }
+            for p in products
+        ]

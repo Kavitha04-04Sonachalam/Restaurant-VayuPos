@@ -1,9 +1,17 @@
 """Customers API routes"""
+
+from typing import Any, Dict, List
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from app.api.dependencies import get_current_user, get_db
 from app.services import CustomerService
-from app.schemas import CustomerCreate, CustomerUpdate, CustomerResponse
+from app.schemas import (
+    CustomerCreate,
+    CustomerUpdate,
+    CustomerResponse,
+)
 
 router = APIRouter(prefix="/customers", tags=["Customers"])
 
@@ -19,24 +27,30 @@ def create_customer(
     return customer
 
 
-@router.get("/", response_model=dict)
+@router.get("/", response_model=Dict[str, Any])
 def list_customers(
     skip: int = 0,
     limit: int = 100,
     is_active: bool = True,
     db: Session = Depends(get_db),
 ):
-    """List all customers"""
-    customers, total = CustomerService.list_customers(db, skip, limit, is_active)
+    """List all customers with pagination"""
+    customers, total = CustomerService.list_customers(
+        db=db,
+        skip=skip,
+        limit=limit,
+        is_active=is_active,
+    )
+
     return {
         "total": total,
         "skip": skip,
         "limit": limit,
-        "data": customers,
+        "data": [CustomerResponse.model_validate(c) for c in customers],
     }
 
 
-@router.get("/search", response_model=list)
+@router.get("/search", response_model=List[CustomerResponse])
 def search_customers(
     q: str,
     db: Session = Depends(get_db),
@@ -47,7 +61,10 @@ def search_customers(
 
 
 @router.get("/{customer_id}", response_model=CustomerResponse)
-def get_customer(customer_id: int, db: Session = Depends(get_db)):
+def get_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+):
     """Get customer by ID"""
     customer = CustomerService.get_customer_by_id(db, customer_id)
     if not customer:
@@ -63,7 +80,11 @@ def update_customer(
     db: Session = Depends(get_db),
 ):
     """Update customer"""
-    customer = CustomerService.update_customer(db, customer_id, customer_update)
+    customer = CustomerService.update_customer(
+        db=db,
+        customer_id=customer_id,
+        customer_update=customer_update,
+    )
     return customer
 
 
@@ -73,7 +94,7 @@ def delete_customer(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Delete (deactivate) customer"""
+    """Deactivate customer"""
     CustomerService.delete_customer(db, customer_id)
     return {"message": "Customer deleted successfully"}
 
@@ -87,4 +108,7 @@ def add_loyalty_points(
 ):
     """Add loyalty points to customer"""
     customer = CustomerService.add_loyalty_points(db, customer_id, points)
-    return {"customer_id": customer.id, "loyalty_points": customer.loyalty_points}
+    return {
+        "customer_id": customer.id,
+        "loyalty_points": customer.loyalty_points,
+    }

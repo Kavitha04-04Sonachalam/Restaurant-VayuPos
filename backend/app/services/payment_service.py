@@ -1,10 +1,13 @@
 """Payment service"""
+from decimal import Decimal
+from typing import Optional, Tuple
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
+
 from app.models import Payment, PaymentStatus, Order
 from app.schemas import PaymentCreate, PaymentUpdate
 from app.core.exceptions import not_found_exception, bad_request_exception
-from typing import Optional, Tuple
-from decimal import Decimal
 
 
 class PaymentService:
@@ -17,17 +20,18 @@ class PaymentService:
         if not order:
             raise not_found_exception("Order not found")
 
-        # Validate payment amount
-        total_paid = db.query(Payment).filter(
-            (Payment.order_id == payment_create.order_id) & 
-            (Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PARTIALLY_REFUNDED]))
-        ).with_entities(lambda: Decimal(0) if not db.query(Payment).filter(
-            (Payment.order_id == payment_create.order_id) & 
-            (Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PARTIALLY_REFUNDED]))
-        ).first() else db.query(func.sum(Payment.amount)).filter(
-            (Payment.order_id == payment_create.order_id) & 
-            (Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PARTIALLY_REFUNDED]))
-        ).scalar() or Decimal(0)).scalar() or Decimal(0)
+        # ----- Validate payment amount -----
+        total_paid = (
+            db.query(func.coalesce(func.sum(Payment.amount), 0))
+            .filter(
+                Payment.order_id == payment_create.order_id,
+                Payment.status.in_(
+                    [PaymentStatus.COMPLETED, PaymentStatus.PARTIALLY_REFUNDED]
+                ),
+            )
+            .scalar()
+            or Decimal(0)
+        )
 
         remaining_amount = order.total - total_paid
 
@@ -36,10 +40,11 @@ class PaymentService:
                 f"Payment amount exceeds remaining order total. Remaining: {remaining_amount}"
             )
 
+        # ----- Create payment -----
         db_payment = Payment(
             order_id=payment_create.order_id,
             payment_method=payment_create.payment_method,
-            status=PaymentStatus.COMPLETED,
+            status=PaymentStatus.COMPLETED,  # or PENDING if you want async capture
             amount=payment_create.amount,
             transaction_id=payment_create.transaction_id,
             reference_number=payment_create.reference_number,
@@ -57,12 +62,16 @@ class PaymentService:
         return db.query(Payment).filter(Payment.id == payment_id).first()
 
     @staticmethod
-    def get_payment_by_transaction_id(db: Session, transaction_id: str) -> Optional[Payment]:
+    def get_payment_by_transaction_id(
+        db: Session, transaction_id: str
+    ) -> Optional[Payment]:
         """Get payment by transaction ID"""
         return db.query(Payment).filter(Payment.transaction_id == transaction_id).first()
 
     @staticmethod
-    def update_payment(db: Session, payment_id: int, payment_update: PaymentUpdate) -> Payment:
+    def update_payment(
+        db: Session, payment_id: int, payment_update: PaymentUpdate
+    ) -> Payment:
         """Update payment"""
         payment = PaymentService.get_payment_by_id(db, payment_id)
         if not payment:
@@ -77,7 +86,9 @@ class PaymentService:
         return payment
 
     @staticmethod
-    def refund_payment(db: Session, payment_id: int, reason: Optional[str] = None) -> Payment:
+    def refund_payment(
+        db: Session, payment_id: int, reason: Optional[str] = None
+    ) -> Payment:
         """Refund a payment"""
         payment = PaymentService.get_payment_by_id(db, payment_id)
         if not payment:
@@ -123,23 +134,23 @@ class PaymentService:
         if not order:
             raise not_found_exception("Order not found")
 
-        paid_amount = db.query(lambda: Decimal(0) if not db.query(Payment).filter(
-            (Payment.order_id == order_id) & (Payment.status == PaymentStatus.COMPLETED)
-        ).first() else db.query(lambda: Decimal(0)).scalar()).scalar() or Decimal(0)
+        paid_amount = (
+            db.query(func.coalesce(func.sum(Payment.amount), 0))
+            .filter(
+                Payment.order_id == order_id,
+                Payment.status == PaymentStatus.COMPLETED,
+            )
+            .scalar()
+            or Decimal(0)
+        )
 
-        # Recalculate paid amount correctly
-        from sqlalchemy import func as sql_func
-        paid_query = db.query(sql_func.coalesce(sql_func.sum(Payment.amount), 0)).filter(
-            (Payment.order_id == order_id) & (Payment.status == PaymentStatus.COMPLETED)
-        ).scalar() or Decimal(0)
-
-        remaining = order.total - paid_query
+        remaining = order.total - paid_amount
         is_paid = remaining <= 0
 
         return {
             "order_id": order_id,
             "order_total": order.total,
-            "paid_amount": paid_query,
+            "paid_amount": paid_amount,
             "remaining_amount": max(remaining, Decimal(0)),
             "is_fully_paid": is_paid,
         }

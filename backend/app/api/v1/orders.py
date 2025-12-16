@@ -1,4 +1,5 @@
 """Orders API routes"""
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_user, get_db
@@ -16,24 +17,25 @@ def create_order(
 ):
     """Create a new order"""
     order = OrderService.create_order(db, order_create, int(current_user["sub"]))
-    return order
+    return OrderResponse.from_orm(order)  # Convert to Pydantic schema
 
 
 @router.get("/", response_model=dict)
 def list_orders(
     skip: int = 0,
     limit: int = 100,
-    status: str = None,
-    customer_id: int = None,
+    status: Optional[str] = None,
+    customer_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     """List all orders"""
     orders, total = OrderService.list_orders(db, skip, limit, status, customer_id)
+    # Convert each order to Pydantic schema
     return {
         "total": total,
         "skip": skip,
         "limit": limit,
-        "data": orders,
+        "data": [OrderResponse.from_orm(order) for order in orders],
     }
 
 
@@ -43,7 +45,7 @@ def get_order(order_id: int, db: Session = Depends(get_db)):
     order = OrderService.get_order_by_id(db, order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    return order
+    return OrderResponse.from_orm(order)
 
 
 @router.put("/{order_id}", response_model=OrderResponse)
@@ -55,7 +57,7 @@ def update_order(
 ):
     """Update order"""
     order = OrderService.update_order(db, order_id, order_update)
-    return order
+    return OrderResponse.from_orm(order)
 
 
 @router.post("/{order_id}/cancel")
@@ -66,7 +68,10 @@ def cancel_order(
 ):
     """Cancel an order"""
     order = OrderService.cancel_order(db, order_id, int(current_user["sub"]))
-    return {"message": "Order cancelled successfully", "order_id": order.id}
+    return {
+        "message": "Order cancelled successfully",
+        "order": OrderResponse.from_orm(order),
+    }
 
 
 @router.get("/number/{order_number}", response_model=OrderResponse)
@@ -75,10 +80,10 @@ def get_order_by_number(order_number: str, db: Session = Depends(get_db)):
     order = OrderService.get_order_by_number(db, order_number)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    return order
+    return OrderResponse.from_orm(order)
 
 
-@router.get("/customer/{customer_id}", response_model=list)
+@router.get("/customer/{customer_id}", response_model=List[OrderResponse])
 def get_customer_orders(
     customer_id: int,
     limit: int = 50,
@@ -86,4 +91,4 @@ def get_customer_orders(
 ):
     """Get all orders for a customer"""
     orders = OrderService.get_customer_orders(db, customer_id, limit)
-    return orders
+    return [OrderResponse.from_orm(order) for order in orders]
