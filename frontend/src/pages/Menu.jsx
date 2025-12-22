@@ -197,8 +197,6 @@ const Menu = () => {
     { action: 'Deleted product: Plain Dosa', time: new Date(Date.now() - 3600000) },
   ]);
 
-  const suggestions = ['Beverages', 'Snacks', 'South Indian', 'Combos'];
-
   // Helper function to get icon component
   const getIconComponent = (iconName) => {
     const iconObj = availableIcons.find(i => i.name === iconName);
@@ -224,6 +222,47 @@ const Menu = () => {
       { action, time: new Date() },
       ...prev
     ].slice(0, 10)); // Keep only last 10 edits
+  };
+
+  // Export functionality
+  const handleExport = () => {
+    // Create CSV content with all categories and products
+    const csvRows = [];
+    
+    // Add header
+    csvRows.push(['Category', 'Product Name', 'Size', 'Price', 'Enabled'].join(','));
+    
+    // Add all products from all categories
+    Object.keys(products).forEach(categoryName => {
+      products[categoryName].forEach(product => {
+        product.sizes.forEach(sizeData => {
+          csvRows.push([
+            `"${categoryName}"`,
+            `"${product.name}"`,
+            `"${sizeData.size}"`,
+            sizeData.price,
+            sizeData.enabled ? 'Yes' : 'No'
+          ].join(','));
+        });
+      });
+    });
+    
+    const csvContent = csvRows.join('\n');
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `menu_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    alert('Menu exported successfully! CSV file downloaded.');
   };
 
   const handleAddCategory = () => {
@@ -497,7 +536,9 @@ const Menu = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
         <h1 className="text-2xl font-semibold text-foreground">Menu Categories</h1>
         <div className="flex gap-2 sm:gap-3 flex-wrap">
-          <button className="flex items-center gap-2 bg-card border border-teal-500 text-teal-500 hover:bg-muted transition-colors px-3 sm:px-4 py-2 rounded-lg text-sm">
+          <button 
+            onClick={handleExport}
+            className="flex items-center gap-2 bg-card border border-teal-500 text-teal-500 hover:bg-muted transition-colors px-3 sm:px-4 py-2 rounded-lg text-sm">
             <Download size={16} />
             <span className="hidden sm:inline">Export</span>
           </button>
@@ -516,12 +557,12 @@ const Menu = () => {
         
         {/* Search */}
         <div className="mb-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Search categories (prefilled or add custom)</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Search categories (or add custom)</p>
           <div className="relative">
             <Search className="text-foreground absolute left-3 top-1/2 transform -translate-y-1/2" size={16} />
             <input
               type="text"
-              placeholder="Type to search database..."
+              placeholder="Type to search or add new category..."
               value={categorySearchTerm}
               onChange={(e) => setCategorySearchTerm(e.target.value)}
               onKeyPress={(e) => {
@@ -536,22 +577,6 @@ const Menu = () => {
               className="text-teal-500 font-medium bg-transparent border-none cursor-pointer absolute right-3 top-1/2 transform -translate-y-1/2 text-sm hover:text-teal-600 transition-colors">
               + Add
             </button>
-          </div>
-        </div>
-
-        {/* Suggestions */}
-        <div className="mb-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Suggested:</p>
-          <div className="flex flex-wrap gap-2">
-            {suggestions.map((suggestion) => (
-              <button
-                key={suggestion}
-                onClick={() => handleCategoryCardClick(suggestion)}
-                className="border border-teal-500 text-teal-500 bg-transparent hover:bg-muted transition-colors px-3 py-1.5 rounded-full text-xs sm:text-sm"
-              >
-                {suggestion}
-              </button>
-            ))}
           </div>
         </div>
 

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Bluetooth, WifiOff, Search, Save, Printer, Info, Zap, RotateCw } from 'lucide-react';
+import { Bluetooth, WifiOff, Search, Save, Printer, Info, Zap, RotateCw, CheckCircle, XCircle } from 'lucide-react';
 
 const KOTPrinterSettings = () => {
   const [scanning, setScanning] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [testPrintStatus, setTestPrintStatus] = useState(null); // 'success', 'error', or null
+  const [saveStatus, setSaveStatus] = useState(null); // 'success', 'error', or null
   const [activePrinter, setActivePrinter] = useState({
     name: 'BT-P58A',
     mac: 'AA:4C:12:8F:22:91',
@@ -41,13 +43,110 @@ const KOTPrinterSettings = () => {
     setActivePrinter({ ...activePrinter, connected: false });
   };
 
-  const handleTestPrint = () => {
-    console.log('Testing print...');
+  const handleTestPrint = async () => {
+    setTestPrintStatus('loading');
+    
+    try {
+      // Simulate print job
+      console.log('Sending test print to printer:', activePrinter.name);
+      console.log('Printer settings:', settings);
+      
+      // Simulate print data
+      const kotData = {
+        header: settings.headerText,
+        orderNumber: '#1027',
+        orderType: 'Dine-in',
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        items: [
+          { name: 'Paneer Roll', quantity: 1, price: 120 },
+          { name: 'Masala Chai', quantity: 2, price: 80 }
+        ],
+        notes: 'No onion',
+        footer: settings.footerText,
+        totalItems: 3
+      };
+      
+      console.log('KOT Data to print:', kotData);
+      
+      // Simulate printer communication delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Check if printer is connected
+      if (!activePrinter.connected) {
+        throw new Error('Printer not connected');
+      }
+      
+      // Success
+      setTestPrintStatus('success');
+      
+      // Show success message with alert
+      alert(`✅ Test Print Successful!\n\nPrinter: ${activePrinter.name}\nMAC: ${activePrinter.mac}\n\nA test KOT has been sent to your printer.`);
+      
+      // Reset status after 3 seconds
+      setTimeout(() => setTestPrintStatus(null), 3000);
+      
+    } catch (error) {
+      console.error('Print error:', error);
+      setTestPrintStatus('error');
+      
+      // Show error message
+      alert(`❌ Test Print Failed!\n\nError: ${error.message}\n\nPlease check:\n- Printer is powered on\n- Bluetooth connection is stable\n- Paper is loaded`);
+      
+      // Reset status after 3 seconds
+      setTimeout(() => setTestPrintStatus(null), 3000);
+    }
   };
 
-  const handleSaveSettings = () => {
-    console.log('Saving settings...', settings);
+  const handleSaveSettings = async () => {
+    setSaveStatus('loading');
+    
+    try {
+      console.log('Saving printer settings...');
+      console.log('Settings to save:', settings);
+      
+      // Validate settings
+      if (!settings.headerText.trim()) {
+        throw new Error('Header text cannot be empty');
+      }
+      
+      if (!settings.footerText.trim()) {
+        throw new Error('Footer text cannot be empty');
+      }
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Save to localStorage (you can replace with API call)
+      localStorage.setItem('kotPrinterSettings', JSON.stringify(settings));
+      localStorage.setItem('activePrinter', JSON.stringify(activePrinter));
+      
+      // Success
+      setSaveStatus('success');
+      
+      // Show success message
+      alert(`✅ Settings Saved Successfully!\n\nPrinter: ${activePrinter.name}\nPaper Width: ${settings.paperWidth}\nFont Size: ${settings.fontSize}\n\nYour KOT printer is ready to use.`);
+      
+      // Reset status after 3 seconds
+      setTimeout(() => setSaveStatus(null), 3000);
+      
+    } catch (error) {
+      console.error('Save error:', error);
+      setSaveStatus('error');
+      
+      // Show error message
+      alert(`❌ Failed to Save Settings!\n\nError: ${error.message}\n\nPlease try again.`);
+      
+      // Reset status after 3 seconds
+      setTimeout(() => setSaveStatus(null), 3000);
+    }
   };
+
+  // Filter devices based on search
+  const filteredDevices = availableDevices.filter(device => 
+    searchQuery === '' ||
+    device.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    device.mac.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -55,13 +154,6 @@ const KOTPrinterSettings = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-[26px] font-bold text-foreground">KOT Printer Settings</h1>
-          <button
-            onClick={handleStartScan}
-            className="flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <RotateCw size={16} />
-            <span className="text-[14px]">Scan Again</span>
-          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -76,7 +168,7 @@ const KOTPrinterSettings = () => {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
                   disabled={scanning}
                 >
-                  <RotateCw size={16} />
+                  <RotateCw size={16} className={scanning ? 'animate-spin' : ''} />
                   <span className="text-[14px]">{scanning ? 'Scanning...' : 'Start Scan'}</span>
                 </button>
               </div>
@@ -97,27 +189,33 @@ const KOTPrinterSettings = () => {
 
               {/* Device List */}
               <div className="space-y-3">
-                {availableDevices.map((device) => (
-                  <div 
-                    key={device.mac} 
-                    className="flex items-center justify-between py-3 px-3 rounded-lg border-b border-border"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Bluetooth size={18} className="text-foreground" />
-                      <div>
-                        <div className="font-semibold text-[16px] text-foreground">{device.name}</div>
-                        <div className="text-[13px] text-muted-foreground">{device.mac}</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleConnect(device)}
-                      className="px-4 py-1.5 rounded-lg font-medium transition-colors text-[14px] flex items-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+                {filteredDevices.length > 0 ? (
+                  filteredDevices.map((device) => (
+                    <div 
+                      key={device.mac} 
+                      className="flex items-center justify-between py-3 px-3 rounded-lg border-b border-border"
                     >
-                      <Bluetooth size={14} />
-                      Connect
-                    </button>
+                      <div className="flex items-center gap-3">
+                        <Bluetooth size={18} className="text-foreground" />
+                        <div>
+                          <div className="font-semibold text-[16px] text-foreground">{device.name}</div>
+                          <div className="text-[13px] text-muted-foreground">{device.mac}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleConnect(device)}
+                        className="px-4 py-1.5 rounded-lg font-medium transition-colors text-[14px] flex items-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        <Bluetooth size={14} />
+                        Connect
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-[14px] text-muted-foreground">No devices found matching "{searchQuery}"</p>
                   </div>
-                ))}
+                )}
               </div>
 
               <div className="mt-4 text-[13px] text-muted-foreground pl-2">
@@ -252,17 +350,69 @@ const KOTPrinterSettings = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={handleTestPrint}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-colors text-[14px] bg-primary text-primary-foreground hover:bg-primary/90"
+                    disabled={testPrintStatus === 'loading'}
+                    className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-colors text-[14px] ${
+                      testPrintStatus === 'success' 
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : testPrintStatus === 'error'
+                        ? 'bg-red-600 text-white hover:bg-red-700'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    <Printer size={16} />
-                    Test Print
+                    {testPrintStatus === 'loading' ? (
+                      <>
+                        <RotateCw size={16} className="animate-spin" />
+                        Printing...
+                      </>
+                    ) : testPrintStatus === 'success' ? (
+                      <>
+                        <CheckCircle size={16} />
+                        Print Success!
+                      </>
+                    ) : testPrintStatus === 'error' ? (
+                      <>
+                        <XCircle size={16} />
+                        Print Failed
+                      </>
+                    ) : (
+                      <>
+                        <Printer size={16} />
+                        Test Print
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={handleSaveSettings}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-colors text-[14px] bg-primary text-primary-foreground hover:bg-primary/90"
+                    disabled={saveStatus === 'loading'}
+                    className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-colors text-[14px] ${
+                      saveStatus === 'success'
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : saveStatus === 'error'
+                        ? 'bg-red-600 text-white hover:bg-red-700'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    <Save size={16} />
-                    Save Settings
+                    {saveStatus === 'loading' ? (
+                      <>
+                        <RotateCw size={16} className="animate-spin" />
+                        Saving...
+                      </>
+                    ) : saveStatus === 'success' ? (
+                      <>
+                        <CheckCircle size={16} />
+                        Saved!
+                      </>
+                    ) : saveStatus === 'error' ? (
+                      <>
+                        <XCircle size={16} />
+                        Save Failed
+                      </>
+                    ) : (
+                      <>
+                        <Save size={16} />
+                        Save Settings
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -282,18 +432,30 @@ const KOTPrinterSettings = () => {
                 <h3 className="text-[16px] font-bold mb-4 text-foreground">Sample KOT</h3>
                 <div className="rounded-lg p-4 bg-muted border border-border">
                   <div className="text-center mb-4">
-                    <h4 className="text-[17px] font-bold text-foreground">QuickBill Kitchen</h4>
+                    <h4 className="text-[17px] font-bold text-foreground">{settings.headerText}</h4>
                     <p className="text-[14px] mt-1 text-muted-foreground">Order #1027 • Dine-in • 10:42 AM</p>
                   </div>
 
                   <div className="space-y-3 mb-4 border-t border-dashed border-border pt-3">
                     <div className="flex justify-between">
-                      <span className="text-[15px] font-semibold text-foreground">1x Paneer Roll</span>
-                      <span className="text-[15px] text-foreground">₹120</span>
+                      <span className={`font-semibold text-foreground ${
+                        settings.fontSize === 'Small' ? 'text-[13px]' : 
+                        settings.fontSize === 'Medium' ? 'text-[15px]' : 'text-[17px]'
+                      }`}>1x Paneer Roll</span>
+                      <span className={`text-foreground ${
+                        settings.fontSize === 'Small' ? 'text-[13px]' : 
+                        settings.fontSize === 'Medium' ? 'text-[15px]' : 'text-[17px]'
+                      }`}>₹120</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[15px] font-semibold text-foreground">2x Masala Chai</span>
-                      <span className="text-[15px] text-foreground">₹80</span>
+                      <span className={`font-semibold text-foreground ${
+                        settings.fontSize === 'Small' ? 'text-[13px]' : 
+                        settings.fontSize === 'Medium' ? 'text-[15px]' : 'text-[17px]'
+                      }`}>2x Masala Chai</span>
+                      <span className={`text-foreground ${
+                        settings.fontSize === 'Small' ? 'text-[13px]' : 
+                        settings.fontSize === 'Medium' ? 'text-[15px]' : 'text-[17px]'
+                      }`}>₹80</span>
                     </div>
                     <div className="text-[14px] text-muted-foreground">
                       <span className="font-semibold">Notes</span>
@@ -301,11 +463,24 @@ const KOTPrinterSettings = () => {
                     </div>
                   </div>
 
+                  {settings.showGST && (
+                    <div className="mb-3 pb-3 border-b border-dashed border-border">
+                      <div className="flex justify-between text-[13px]">
+                        <span className="text-muted-foreground">GST (5%)</span>
+                        <span className="text-foreground">₹10</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="pt-3 border-t border-dashed border-border">
                     <div className="flex justify-between">
                       <span className="text-[15px] font-bold text-foreground">Total Items</span>
                       <span className="text-[15px] font-bold text-foreground">3</span>
                     </div>
+                  </div>
+
+                  <div className="text-center mt-4 pt-3 border-t border-dashed border-border">
+                    <p className="text-[13px] text-muted-foreground">{settings.footerText}</p>
                   </div>
                 </div>
               </div>

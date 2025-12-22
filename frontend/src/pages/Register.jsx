@@ -1,92 +1,121 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
+import api from "../api/axios"; // axios instance with baseURL http://127.0.0.1:8000/api/v1
 
 const Register = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    number: '',
-    password: '',
-    confirmPassword: ''
+    name: "",
+    email: "",
+    number: "",
+    password: "",
+    confirmPassword: "",
   });
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
-    // Clear error for this field
     if (errors[e.target.name]) {
       setErrors({
         ...errors,
-        [e.target.name]: ''
+        [e.target.name]: "",
       });
     }
   };
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = "Name is required";
     } else if (formData.name.trim().length < 3) {
-      newErrors.name = 'Name must be at least 3 characters';
+      newErrors.name = "Name must be at least 3 characters";
     }
-    
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.email = "Please enter a valid email";
+    }
+
     if (!formData.number.trim()) {
-      newErrors.number = 'Mobile number is required';
+      newErrors.number = "Mobile number is required";
     } else if (!/^\d{10}$/.test(formData.number.trim())) {
-      newErrors.number = 'Please enter a valid 10-digit mobile number';
+      newErrors.number = "Please enter a valid 10-digit mobile number";
     }
-    
+
     if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = "Password is required";
+    } else if (formData.password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
     }
-    
+
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
+      newErrors.confirmPassword = "Please confirm your password";
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = "Passwords do not match";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+  const buildUsername = () => {
+    const fromEmail = formData.email.trim().split("@")[0] || "user";
+    let username = fromEmail.replace(/[^a-zA-Z0-9_.-]/g, "");
+    if (username.length < 3) username = (username + "user").slice(0, 3);
+    if (username.length > 50) username = username.slice(0, 50);
+    return username;
+  };
 
-    // Mock registration - replace with your actual API call
-    console.log('Registration data:', {
-      name: formData.name,
-      number: formData.number,
-      password: formData.password
-    });
-    
-    // Auto login after registration
-    localStorage.setItem('isAuthenticated', 'true');
-    localStorage.setItem('userRole', 'user');
-    localStorage.setItem('userNumber', formData.number);
-    localStorage.setItem('userName', formData.name);
-    
-    // Navigate to dashboard
-    navigate('/', { replace: true });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    try {
+      setSubmitting(true);
+
+      const payload = {
+        username: buildUsername(),
+        email: formData.email.trim(),
+        full_name: formData.name.trim(),
+        phone_number: formData.number.trim(),
+        password: formData.password,
+        // backend sets role = "cashier" by default
+      };
+
+      const res = await api.post("/auth/register", payload);
+      console.log("REGISTER RESPONSE:", res.status, res.data);
+
+      // treat 200/201 as success
+      if (res.status === 201 || res.status === 200) {
+        alert("Account created successfully!");
+        // after signup, usually go to login page
+        navigate("/login", { replace: true });
+      } else {
+        alert("Registration failed. Please try again.");
+      }
+    } catch (err) {
+      console.error(
+        "REGISTER ERROR RAW:",
+        JSON.stringify(err?.response?.data || err.message, null, 2)
+      );
+      alert("Registration failed. Check console and send me the JSON.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#0f1419] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Registration Card */}
         <div className="bg-[#1a2332] rounded-xl p-8 shadow-xl">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-white mb-2">
@@ -95,7 +124,7 @@ const Register = () => {
           </div>
 
           <form onSubmit={handleSubmit}>
-            {/* Name Field */}
+            {/* Name */}
             <div className="mb-6">
               <label className="block text-white font-medium mb-2">
                 Name
@@ -107,9 +136,9 @@ const Register = () => {
                 onChange={handleInputChange}
                 placeholder="Enter your name"
                 className={`w-full px-4 py-3 bg-[#0f1419] border rounded-lg text-white placeholder-gray-500 focus:outline-none transition-colors ${
-                  errors.name 
-                    ? 'border-red-500 focus:border-red-500' 
-                    : 'border-gray-700 focus:border-[#14b8a6]'
+                  errors.name
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-gray-700 focus:border-[#14b8a6]"
                 }`}
               />
               {errors.name && (
@@ -117,7 +146,29 @@ const Register = () => {
               )}
             </div>
 
-            {/* Number Field */}
+            {/* Email */}
+            <div className="mb-6">
+              <label className="block text-white font-medium mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="Enter your email"
+                className={`w-full px-4 py-3 bg-[#0f1419] border rounded-lg text-white placeholder-gray-500 focus:outline-none transition-colors ${
+                  errors.email
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-gray-700 focus:border-[#14b8a6]"
+                }`}
+              />
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
+            </div>
+
+            {/* Phone number */}
             <div className="mb-6">
               <label className="block text-white font-medium mb-2">
                 Number
@@ -129,9 +180,9 @@ const Register = () => {
                 onChange={handleInputChange}
                 placeholder="Enter your phone number"
                 className={`w-full px-4 py-3 bg-[#0f1419] border rounded-lg text-white placeholder-gray-500 focus:outline-none transition-colors ${
-                  errors.number 
-                    ? 'border-red-500 focus:border-red-500' 
-                    : 'border-gray-700 focus:border-[#14b8a6]'
+                  errors.number
+                    ? "border-red-500 focus:border-red-500"
+                    : "border-gray-700 focus:border-[#14b8a6]"
                 }`}
               />
               {errors.number && (
@@ -139,22 +190,22 @@ const Register = () => {
               )}
             </div>
 
-            {/* Password Field */}
+            {/* Password */}
             <div className="mb-6">
               <label className="block text-white font-medium mb-2">
                 Password
               </label>
               <div className="relative">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
                   placeholder="Enter your password"
                   className={`w-full px-4 py-3 bg-[#0f1419] border rounded-lg text-white placeholder-gray-500 focus:outline-none transition-colors pr-12 ${
-                    errors.password 
-                      ? 'border-red-500 focus:border-red-500' 
-                      : 'border-gray-700 focus:border-[#14b8a6]'
+                    errors.password
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-gray-700 focus:border-[#14b8a6]"
                   }`}
                 />
                 <button
@@ -162,39 +213,39 @@ const Register = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
                 >
-                  {showPassword ? (
-                    <EyeOff size={20} />
-                  ) : (
-                    <Eye size={20} />
-                  )}
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.password}
+                </p>
               )}
             </div>
 
-            {/* Confirm Password Field */}
+            {/* Confirm password */}
             <div className="mb-8">
               <label className="block text-white font-medium mb-2">
                 Confirm Password
               </label>
               <div className="relative">
                 <input
-                  type={showConfirmPassword ? 'text' : 'password'}
+                  type={showConfirmPassword ? "text" : "password"}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
                   placeholder="Confirm your password"
                   className={`w-full px-4 py-3 bg-[#0f1419] border rounded-lg text-white placeholder-gray-500 focus:outline-none transition-colors pr-12 ${
-                    errors.confirmPassword 
-                      ? 'border-red-500 focus:border-red-500' 
-                      : 'border-gray-700 focus:border-[#14b8a6]'
+                    errors.confirmPassword
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-gray-700 focus:border-[#14b8a6]"
                   }`}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  onClick={() =>
+                    setShowConfirmPassword(!showConfirmPassword)
+                  }
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
                 >
                   {showConfirmPassword ? (
@@ -205,24 +256,27 @@ const Register = () => {
                 </button>
               </div>
               {errors.confirmPassword && (
-                <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.confirmPassword}
+                </p>
               )}
             </div>
 
-            {/* Sign Up Button */}
+            {/* Submit */}
             <button
               type="submit"
-              className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium py-3 rounded-lg transition-colors mb-6"
+              disabled={submitting}
+              className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium py-3 rounded-lg transition-colors mb-6"
             >
-              Sign Up
+              {submitting ? "Creating account..." : "Sign Up"}
             </button>
 
-            {/* Login Link */}
+            {/* Login link */}
             <div className="text-center text-gray-400 text-sm">
-              Already have an account?{' '}
+              Already have an account?{" "}
               <button
                 type="button"
-                onClick={() => navigate('/login')}
+                onClick={() => navigate("/login")}
                 className="text-[#14b8a6] hover:text-[#0d9488] font-medium transition-colors"
               >
                 Login

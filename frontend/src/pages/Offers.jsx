@@ -292,10 +292,43 @@ function Offers() {
   };
 
   const handleExport = () => {
-    alert('Exporting coupons data...');
-    setTimeout(() => {
-      alert('Export completed! CSV file downloaded.');
-    }, 500);
+    // Create CSV content
+    const headers = ['ID', 'Name', 'Code', 'Type', 'Value', 'Start Date', 'End Date', 'Usage Limit', 'Min Order', 'Assigned To', 'Validity', 'Status'];
+    
+    const csvRows = [
+      headers.join(','),
+      ...filteredCoupons.map(coupon => [
+        coupon.id,
+        `"${coupon.name}"`,
+        coupon.code,
+        coupon.type,
+        coupon.value,
+        coupon.startDate,
+        coupon.endDate,
+        `"${coupon.usageLimit}"`,
+        coupon.minOrder,
+        `"${coupon.assignedTo}"`,
+        `"${coupon.validity}"`,
+        coupon.status
+      ].join(','))
+    ];
+    
+    const csvContent = csvRows.join('\n');
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `coupons_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    alert('Export completed! CSV file downloaded.');
   };
 
   const filteredCoupons = coupons.filter(coupon => {
@@ -657,7 +690,8 @@ function Offers() {
                     <th className="text-muted-foreground text-left py-3 px-2 text-xs font-medium">Value</th>
                     <th className="text-muted-foreground text-left py-3 px-2 text-xs font-medium">Assigned To</th>
                     <th className="text-muted-foreground text-left py-3 px-2 text-xs font-medium">Validity</th>
-                    <th className="text-muted-foreground text-left py-3 px-2 text-xs font-medium">Status</th><th className="text-muted-foreground text-left py-3 px-2 text-xs font-medium">Actions</th>
+                    <th className="text-muted-foreground text-left py-3 px-2 text-xs font-medium">Status</th>
+                    <th className="text-muted-foreground text-left py-3 px-2 text-xs font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -709,121 +743,125 @@ function Offers() {
                   ))}
                 </tbody>
               </table>
-            </div>{/* Coupons Cards - Mobile/Tablet */}
-        <div className="lg:hidden space-y-3">
-          {filteredCoupons.map((coupon) => (
-            <div key={coupon.id} className="bg-muted rounded-lg p-3">
-              <div className="flex justify-between items-start mb-3 gap-2">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-foreground font-semibold text-sm mb-1 truncate">{coupon.name}</h3>
-                  <p className="text-muted-foreground text-xs">Code: {coupon.code}</p>
-                </div>
-                <span className={`px-2 py-1 text-white text-xs rounded-full whitespace-nowrap flex-shrink-0 ${coupon.status === 'Active' ? 'bg-teal-600' : 'bg-red-500'}`}>
-                  {coupon.status}
-                </span>
-              </div>
-              
-              <div className="space-y-1.5 mb-3 text-xs sm:text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Type:</span>
-                  <span className="text-foreground">{coupon.type}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Value:</span>
-                  <span className="text-foreground font-semibold">
-                    {coupon.type === 'Percentage' ? `${coupon.value}%` : `₹ ${coupon.value}`}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Assigned:</span>
-                  <span className="px-2 py-0.5 bg-teal-600 text-white text-xs rounded-full">
-                    {coupon.assignedTo}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Validity:</span>
-                  <span className="text-foreground text-xs text-right">{coupon.validity}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <button 
-                  onClick={() => handleEdit(coupon)}
-                  className="flex items-center justify-center gap-1 px-2 py-2 bg-teal-600 text-white rounded-lg text-xs hover:bg-teal-700 transition-colors"
-                >
-                  <Edit size={12} />
-                  <span className="hidden sm:inline">Edit</span>
-                </button>
-                <button 
-                  onClick={() => handleAssign(coupon)}
-                  className="flex items-center justify-center gap-1 px-2 py-2 bg-teal-600 text-white rounded-lg text-xs hover:bg-teal-700 transition-colors"
-                >
-                  <Link2 size={12} />
-                  <span className="hidden sm:inline">Assign</span>
-                </button>
-                <button 
-                  onClick={() => handleDelete(coupon.id)}
-                  className="flex items-center justify-center gap-1 px-2 py-2 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700 transition-colors"
-                >
-                  <Trash2 size={12} />
-                  <span className="hidden sm:inline">Delete</span>
-                </button>
-              </div>
             </div>
-          ))}
-        </div>
 
-        {filteredCoupons.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground text-xs sm:text-sm">
-            No coupons found matching your filters.
-          </div>
-        )}
-      </div>
+            {/* Coupons Cards - Mobile/Tablet */}
+            <div className="lg:hidden space-y-3">
+              {filteredCoupons.map((coupon) => (
+                <div key={coupon.id} className="bg-muted rounded-lg p-3">
+                  <div className="flex justify-between items-start mb-3 gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-foreground font-semibold text-sm mb-1 truncate">{coupon.name}</h3>
+                      <p className="text-muted-foreground text-xs">Code: {coupon.code}</p>
+                    </div>
+                    <span className={`px-2 py-1 text-white text-xs rounded-full whitespace-nowrap flex-shrink-0 ${coupon.status === 'Active' ? 'bg-teal-600' : 'bg-red-500'}`}>
+                      {coupon.status}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1.5 mb-3 text-xs sm:text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Type:</span>
+                      <span className="text-foreground">{coupon.type}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Value:</span>
+                      <span className="text-foreground font-semibold">
+                        {coupon.type === 'Percentage' ? `${coupon.value}%` : `₹ ${coupon.value}`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Assigned:</span>
+                      <span className="px-2 py-0.5 bg-teal-600 text-white text-xs rounded-full">
+                        {coupon.assignedTo}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Validity:</span>
+                      <span className="text-foreground text-xs text-right">{coupon.validity}</span>
+                    </div>
+                  </div>
 
-      {/* Quick Assign Section */}
-      <div className="bg-card rounded-lg shadow-sm p-3 sm:p-4 lg:p-6">
-        <h2 className="text-foreground text-sm sm:text-base lg:text-lg font-semibold mb-4">Quick Assign</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="bg-muted rounded-lg p-3">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-start gap-2 flex-1">
-                <Link2 size={18} className="text-teal-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-foreground text-xs sm:text-sm lg:text-base font-medium mb-1">Assign Coupon to Order</h3>
-                  <p className="text-muted-foreground text-xs">Link coupon to a specific order ID quickly</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button 
+                      onClick={() => handleEdit(coupon)}
+                      className="flex items-center justify-center gap-1 px-2 py-2 bg-teal-600 text-white rounded-lg text-xs hover:bg-teal-700 transition-colors"
+                    >
+                      <Edit size={12} />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
+                    <button 
+                      onClick={() => handleAssign(coupon)}
+                      className="flex items-center justify-center gap-1 px-2 py-2 bg-teal-600 text-white rounded-lg text-xs hover:bg-teal-700 transition-colors"
+                    >
+                      <Link2 size={12} />
+                      <span className="hidden sm:inline">Assign</span>
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(coupon.id)}
+                      className="flex items-center justify-center gap-1 px-2 py-2 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700 transition-colors"
+                    >
+                      <Trash2 size={12} />
+                      <span className="hidden sm:inline">Delete</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <button 
-                onClick={handleQuickAssignOrder}
-                className="w-full sm:w-auto px-3 py-2 bg-teal-600 text-white rounded-lg text-xs sm:text-sm hover:bg-teal-700 transition-colors whitespace-nowrap"
-              >
-                Assign
-              </button>
+              ))}
             </div>
+
+            {filteredCoupons.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground text-xs sm:text-sm">
+                No coupons found matching your filters.
+              </div>
+            )}
           </div>
 
-          <div className="bg-muted rounded-lg p-3">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-start gap-2 flex-1">
-                <FolderOpen size={18} className="text-teal-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-foreground text-xs sm:text-sm lg:text-base font-medium mb-1">Assign to Categories</h3>
-                  <p className="text-muted-foreground text-xs">Apply coupon to selected menu categories</p>
+          {/* Quick Assign Section */}
+          <div className="bg-card rounded-lg shadow-sm p-3 sm:p-4 lg:p-6">
+            <h2 className="text-foreground text-sm sm:text-base lg:text-lg font-semibold mb-4">Quick Assign</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-muted rounded-lg p-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-2 flex-1">
+                    <Link2 size={18} className="text-teal-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-foreground text-xs sm:text-sm lg:text-base font-medium mb-1">Assign Coupon to Order</h3>
+                      <p className="text-muted-foreground text-xs">Link coupon to a specific order ID quickly</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={handleQuickAssignOrder}
+                    className="w-full sm:w-auto px-3 py-2 bg-teal-600 text-white rounded-lg text-xs sm:text-sm hover:bg-teal-700 transition-colors whitespace-nowrap"
+                  >
+                    Assign
+                  </button>
                 </div>
               </div>
-              <button 
-                onClick={handleChooseCategories}
-                className="w-full sm:w-auto px-3 py-2 bg-teal-600 text-white rounded-lg text-xs sm:text-sm hover:bg-teal-700 transition-colors whitespace-nowrap"
-              >
-                Choose
-              </button>
+
+              <div className="bg-muted rounded-lg p-3">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-2 flex-1">
+                    <FolderOpen size={18} className="text-teal-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-foreground text-xs sm:text-sm lg:text-base font-medium mb-1">Assign to Categories</h3>
+                      <p className="text-muted-foreground text-xs">Apply coupon to selected menu categories</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={handleChooseCategories}
+                    className="w-full sm:w-auto px-3 py-2 bg-teal-600 text-white rounded-lg text-xs sm:text-sm hover:bg-teal-700 transition-colors whitespace-nowrap"
+                  >
+                    Choose
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</div>);
+  );
 }
+
 export default Offers;

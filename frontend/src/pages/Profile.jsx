@@ -1,27 +1,76 @@
-import React, { useState } from 'react';
-import { User, Phone, Mail, MapPin, Calendar, Edit2, Save, X, Lock } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import {
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Edit2,
+  Save,
+  X,
+  Lock,
+} from "lucide-react";
+import api from "../api/axios";
 
 const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState({
-    name: localStorage.getItem('userName') || 'User',
-    phone: localStorage.getItem('userNumber') || '',
-    email: localStorage.getItem('userEmail') || '',
-    address: localStorage.getItem('userAddress') || '',
-    joinedDate: localStorage.getItem('userJoinedDate') || new Date().toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }),
-  });
-
-  const [editData, setEditData] = useState({ ...profileData });
+  const [profileData, setProfileData] = useState(null);
+  const [editData, setEditData] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
+  const [userId, setUserId] = useState(null);
+
+  // Fetch current user from backend
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        if (!token) return;
+
+        const res = await api.get("/auth/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const user = res.data;
+        setUserId(user.id); // important for PUT /users/{user_id}
+
+        const joined = new Date(
+          user.created_at || Date.now()
+        ).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+
+        const data = {
+          name: user.full_name || user.username || "User",
+          phone: user.phone_number || "",
+          email: user.email || "",
+          address: "", // map backend address here if you later add it
+          joinedDate: joined,
+        };
+
+        setProfileData(data);
+        setEditData(data);
+
+        // optional sync to localStorage
+        localStorage.setItem("userName", data.name);
+        localStorage.setItem("userNumber", data.phone);
+        localStorage.setItem("userEmail", data.email);
+        localStorage.setItem("userJoinedDate", data.joinedDate);
+      } catch (err) {
+        console.error("GET /auth/me error:", err?.response?.data || err);
+      }
+    };
+
+    fetchMe();
+  }, []);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -33,60 +82,130 @@ const Profile = () => {
     setEditData({ ...profileData });
   };
 
-  const handleSave = () => {
-    // Save to localStorage
-    localStorage.setItem('userName', editData.name);
-    localStorage.setItem('userNumber', editData.phone);
-    localStorage.setItem('userEmail', editData.email);
-    localStorage.setItem('userAddress', editData.address);
-    
-    setProfileData(editData);
-    setIsEditing(false);
-    alert('Profile updated successfully!');
+  // Now updates BOTH backend and frontend
+  const handleSave = async () => {
+    if (!userId) {
+      alert("User ID not loaded yet.");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("access_token");
+
+      // Adjust field names to match your UserUpdate schema
+      const body = {
+        full_name: editData.name,
+        email: editData.email,
+        phone_number: editData.phone,
+        // add other allowed fields from UserUpdate if needed
+      };
+
+      await api.put(`/users/${userId}`, body, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // if backend ok, update frontend state + localStorage
+      setProfileData(editData);
+
+      localStorage.setItem("userName", editData.name);
+      localStorage.setItem("userNumber", editData.phone);
+      localStorage.setItem("userEmail", editData.email);
+      localStorage.setItem("userAddress", editData.address || "");
+
+      setIsEditing(false);
+      alert("Profile updated successfully!");
+    } catch (err) {
+      console.error("UPDATE USER ERROR:", err?.response?.data || err);
+      alert(
+        err?.response?.data?.detail ||
+          "Failed to update profile. Please try again."
+      );
+    }
   };
 
-  const handlePasswordChange = () => {
-    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      alert('Please fill all password fields');
+  const handlePasswordChange = async () => {
+    if (
+      !passwordData.currentPassword ||
+      !passwordData.newPassword ||
+      !passwordData.confirmPassword
+    ) {
+      alert("Please fill all password fields");
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('New passwords do not match');
+      alert("New passwords do not match");
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      alert('Password must be at least 6 characters');
+      alert("Password must be at least 6 characters");
       return;
     }
 
-    // Here you would verify current password with backend
-    // For now, just show success
-    alert('Password changed successfully!');
-    setShowPasswordModal(false);
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
+    try {
+      const token = localStorage.getItem("access_token");
+
+      // Backend expects query params: old_password, new_password
+      await api.post(
+        "/auth/change-password",
+        null,
+        {
+          params: {
+            old_password: passwordData.currentPassword,
+            new_password: passwordData.newPassword,
+          },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      alert("Password changed successfully!");
+      setShowPasswordModal(false);
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (err) {
+      console.error(
+        "CHANGE PASSWORD ERROR:",
+        err?.response?.data || err.message
+      );
+      alert(
+        err?.response?.data?.detail ||
+          "Failed to change password. Please check current password."
+      );
+    }
   };
 
-  const getInitials = (name) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
+  const getInitials = (name) =>
+    name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
       .toUpperCase()
       .substring(0, 2);
-  };
+
+  if (!profileData) {
+    return (
+      <div className="min-h-screen bg-background p-3 sm:p-4 lg:p-6 flex items-center justify-center">
+        <p className="text-muted-foreground">Loading profile...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-3 sm:p-4 lg:p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Profile</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+            Profile
+          </h1>
           <p className="text-muted-foreground">Manage your account information</p>
         </div>
 
@@ -99,7 +218,7 @@ const Profile = () => {
                 {getInitials(profileData.name)}
               </span>
             </div>
-            
+
             <div className="flex-1 text-center sm:text-left">
               <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-1">
                 {profileData.name}
@@ -135,11 +254,15 @@ const Profile = () => {
                   <input
                     type="text"
                     value={editData.name}
-                    onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                    onChange={(e) =>
+                      setEditData({ ...editData, name: e.target.value })
+                    }
                     className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:border-teal-600"
                   />
                 ) : (
-                  <p className="text-foreground px-4 py-2.5">{profileData.name}</p>
+                  <p className="text-foreground px-4 py-2.5">
+                    {profileData.name}
+                  </p>
                 )}
               </div>
 
@@ -153,11 +276,15 @@ const Profile = () => {
                   <input
                     type="text"
                     value={editData.phone}
-                    onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                    onChange={(e) =>
+                      setEditData({ ...editData, phone: e.target.value })
+                    }
                     className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:border-teal-600"
                   />
                 ) : (
-                  <p className="text-foreground px-4 py-2.5">{profileData.phone}</p>
+                  <p className="text-foreground px-4 py-2.5">
+                    {profileData.phone}
+                  </p>
                 )}
               </div>
 
@@ -171,12 +298,16 @@ const Profile = () => {
                   <input
                     type="email"
                     value={editData.email}
-                    onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                    onChange={(e) =>
+                      setEditData({ ...editData, email: e.target.value })
+                    }
                     className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:border-teal-600"
                     placeholder="your.email@example.com"
                   />
                 ) : (
-                  <p className="text-foreground px-4 py-2.5">{profileData.email || 'Not set'}</p>
+                  <p className="text-foreground px-4 py-2.5">
+                    {profileData.email || "Not set"}
+                  </p>
                 )}
               </div>
 
@@ -190,12 +321,16 @@ const Profile = () => {
                   <input
                     type="text"
                     value={editData.address}
-                    onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                    onChange={(e) =>
+                      setEditData({ ...editData, address: e.target.value })
+                    }
                     className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:border-teal-600"
                     placeholder="Enter your address"
                   />
                 ) : (
-                  <p className="text-foreground px-4 py-2.5">{profileData.address || 'Not set'}</p>
+                  <p className="text-foreground px-4 py-2.5">
+                    {profileData.address || "Not set"}
+                  </p>
                 )}
               </div>
             </div>
@@ -241,7 +376,9 @@ const Profile = () => {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-xl p-6 max-w-md w-full border border-border">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-foreground">Change Password</h3>
+              <h3 className="text-lg font-semibold text-foreground">
+                Change Password
+              </h3>
               <button
                 onClick={() => setShowPasswordModal(false)}
                 className="text-muted-foreground hover:text-foreground"
@@ -258,7 +395,12 @@ const Profile = () => {
                 <input
                   type="password"
                   value={passwordData.currentPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      currentPassword: e.target.value,
+                    })
+                  }
                   className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:border-teal-600"
                   placeholder="Enter current password"
                 />
@@ -271,7 +413,12 @@ const Profile = () => {
                 <input
                   type="password"
                   value={passwordData.newPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      newPassword: e.target.value,
+                    })
+                  }
                   className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:border-teal-600"
                   placeholder="Enter new password"
                 />
@@ -284,7 +431,12 @@ const Profile = () => {
                 <input
                   type="password"
                   value={passwordData.confirmPassword}
-                  onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                  onChange={(e) =>
+                    setPasswordData({
+                      ...passwordData,
+                      confirmPassword: e.target.value,
+                    })
+                  }
                   className="w-full px-4 py-2.5 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:border-teal-600"
                   placeholder="Confirm new password"
                 />

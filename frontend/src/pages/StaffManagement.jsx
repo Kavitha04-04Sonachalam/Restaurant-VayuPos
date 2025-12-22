@@ -12,6 +12,7 @@ import {
     Save,
     PlusCircle,
     X,
+    Download,
 } from 'lucide-react';
 
 const StaffManagement = () => {
@@ -24,6 +25,8 @@ const StaffManagement = () => {
     const [showNewStaffModal, setShowNewStaffModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingStaff, setEditingStaff] = useState(null);
+    const [showSimulationModal, setShowSimulationModal] = useState(false);
+    const [simulationResults, setSimulationResults] = useState([]);
 
     const [newStaff, setNewStaff] = useState({
         name: '',
@@ -43,6 +46,7 @@ const StaffManagement = () => {
             salary: '₹18,000 / month',
             salaryAmount: 18000,
             joined: '12 Feb 2024',
+            joinedDate: '2024-02-12',
             avatar: 'A',
             color: '#E74C3C',
             status: 'Active',
@@ -56,6 +60,7 @@ const StaffManagement = () => {
             salary: '₹25,000 / month',
             salaryAmount: 25000,
             joined: '01 Jun 2023',
+            joinedDate: '2023-06-01',
             avatar: 'R',
             color: '#95A5A6',
             status: 'Active',
@@ -69,6 +74,7 @@ const StaffManagement = () => {
             salary: '₹12,500 / month',
             salaryAmount: 12500,
             joined: '20 Sep 2024',
+            joinedDate: '2024-09-20',
             avatar: 'S',
             color: '#D4A574',
             status: 'Active',
@@ -135,6 +141,94 @@ const StaffManagement = () => {
         return formatted;
     };
 
+    const handleExport = () => {
+        // Create CSV content
+        const headers = ['ID', 'Name', 'Phone', 'Role', 'Monthly Salary', 'Salary Amount', 'Joined Date', 'Status', 'Aadhar'];
+        
+        const csvRows = [
+            headers.join(','),
+            ...filteredStaff.map(member => [
+                member.id,
+                `"${member.name}"`,
+                `"${member.phone}"`,
+                member.role,
+                `"${member.salary}"`,
+                member.salaryAmount,
+                member.joined,
+                member.status,
+                `"${member.aadhar || 'N/A'}"`
+            ].join(','))
+        ];
+        
+        const csvContent = csvRows.join('\n');
+        
+        // Create blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', `staff_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        alert('Export completed! CSV file downloaded.');
+    };
+
+    const handleSimulateNextRun = () => {
+        // Calculate next salary dates for all active staff
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        
+        const simulations = staff
+            .filter(member => member.status === 'Active')
+            .map(member => {
+                // Parse the joined date
+                const joinedDate = new Date(member.joinedDate);
+                const dayOfMonth = joinedDate.getDate();
+                
+                // Calculate next payment date
+                let nextPaymentDate = new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
+                
+                // If the date has passed this month, move to next month
+                if (nextPaymentDate <= today) {
+                    nextPaymentDate = new Date(today.getFullYear(), today.getMonth() + 1, dayOfMonth);
+                }
+                
+                return {
+                    id: member.id,
+                    name: member.name,
+                    role: member.role,
+                    avatar: member.avatar,
+                    color: member.color,
+                    amount: member.salary,
+                    amountNumber: member.salaryAmount,
+                    nextPaymentDate: nextPaymentDate.toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    }),
+                    category: automation.expenseCategory,
+                    account: automation.expenseAccount,
+                    time: automation.autoAddTime,
+                };
+            })
+            .sort((a, b) => new Date(a.nextPaymentDate) - new Date(b.nextPaymentDate));
+        
+        const totalAmount = simulations.reduce((sum, sim) => sum + sim.amountNumber, 0);
+        
+        setSimulationResults({
+            entries: simulations,
+            totalAmount: totalAmount,
+            nextRunDate: simulations.length > 0 ? simulations[0].nextPaymentDate : 'N/A',
+        });
+        
+        setShowSimulationModal(true);
+    };
+
     const handleAddStaff = () => {
         if (!newStaff.name || !newStaff.phone || !newStaff.salary) {
             alert('Please fill all required fields');
@@ -163,6 +257,7 @@ const StaffManagement = () => {
                 month: 'short',
                 year: 'numeric',
             }),
+            joinedDate: newStaff.joined,
             avatar: avatar,
             color: color,
             status: 'Active',
@@ -276,6 +371,13 @@ const StaffManagement = () => {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
                     <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold text-foreground">Staff</h1>
                     <div className="flex gap-2 flex-wrap w-full sm:w-auto">
+                        <button
+                            onClick={handleExport}
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors bg-teal-600 text-white hover:bg-teal-700 text-xs sm:text-sm"
+                        >
+                            <Download size={14} className="sm:w-4 sm:h-4" />
+                            <span>Export</span>
+                        </button>
                         <button
                             onClick={() => alert('Import functionality triggered!')}
                             className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors bg-teal-600 text-white hover:bg-teal-700 text-xs sm:text-sm"
@@ -588,47 +690,402 @@ const StaffManagement = () => {
                                             onChange={(e) =>
                                                 setAutomation({ ...automation, autoAddTime: e.target.value })
                                             }
-                                            className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"/>
+                                            className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Notes</label>
+                                        <input
+                                            type="text"
+                                            value={automation.notes}
+                                            onChange={(e) =>
+                                                setAutomation({ ...automation, notes: e.target.value })
+                                            }
+                                            className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Notes</label>
-                                    <input
-                                        type="text"
-                                        value={automation.notes}
-                                        onChange={(e) =>
-                                            setAutomation({ ...automation, notes: e.target.value })
-                                        }
-                                        className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                                    />
+
+                                <div className="flex gap-2 pt-2 sm:pt-4 flex-wrap">
+                                    <button 
+                                        onClick={handleSimulateNextRun}
+                                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-teal-600 text-white hover:bg-teal-700"
+                                    >
+                                        <Play size={14} />
+                                        <span className="hidden sm:inline">Simulate Next Run</span>
+                                        <span className="sm:hidden">Simulate</span>
+                                    </button>
+                                    <button
+                                        onClick={handleSaveRules}
+                                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-teal-600 text-white hover:bg-teal-700"
+                                    >
+                                        <Save size={14} />
+                                        Save Rules
+                                    </button>
                                 </div>
                             </div>
+                        </div>
 
-                            <div className="flex gap-2 pt-2 sm:pt-4 flex-wrap">
-                                <button className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-teal-600 text-white hover:bg-teal-700">
-                                    <Play size={14} />
-                                    <span className="hidden sm:inline">Simulate Next Run</span>
-                                    <span className="sm:hidden">Simulate</span>
-                                </button>
-                                <button
-                                    onClick={handleSaveRules}
-                                    className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-teal-600 text-white hover:bg-teal-700"
-                                >
-                                    <Save size={14} />
-                                    Save Rules
-                                </button>
+                        {/* Upcoming Salary Entries */}
+                        <div className="rounded-xl px-3 sm:px-4 lg:px-5 py-3 sm:py-4 lg:py-5 bg-card border border-border">
+                            <h3 className="text-xs sm:text-sm lg:text-base font-semibold mb-3 sm:mb-4 text-card-foreground">Upcoming Salary Entries</h3>
+
+                            <div className="overflow-x-auto -mx-3 sm:mx-0">
+                                <div className="inline-block min-w-full align-middle">
+                                    <div className="overflow-hidden">
+                                        <table className="min-w-full">
+                                            <thead>
+                                                <tr className="bg-primary/10 border-b border-border">
+                                                    <th className="text-left font-semibold py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-muted-foreground">
+                                                        Staff
+                                                    </th>
+                                                    <th className="text-left font-semibold py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-muted-foreground hidden sm:table-cell">
+                                                        Amount
+                                                    </th>
+                                                    <th className="text-left font-semibold py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-muted-foreground hidden md:table-cell">
+                                                        Due On
+                                                    </th>
+                                                    <th className="text-right font-semibold py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-muted-foreground">
+                                                        Action
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {upcomingSalaries.map((salary) => (
+                                                    <tr key={salary.id} className="border-b border-border">
+                                                        <td className="py-2 sm:py-3 lg:py-4 px-2 sm:px-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <div
+                                                                    className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0 text-white"
+                                                                    style={{ backgroundColor: salary.color }}
+                                                                >
+                                                                    {salary.avatar}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <div className="font-semibold text-xs sm:text-sm text-foreground truncate">
+                                                                        {salary.name}
+                                                                    </div>
+                                                                    <div className="text-xs text-muted-foreground">
+                                                                        {salary.role}
+                                                                    </div>
+                                                                    <div className="text-xs text-muted-foreground sm:hidden">
+                                                                        {salary.amount} • {salary.dueDate}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-2 sm:py-3 lg:py-4 px-2 sm:px-3 hidden sm:table-cell">
+                                                            <span className="text-xs sm:text-sm font-semibold text-foreground">
+                                                                {salary.amount}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-2 sm:py-3 lg:py-4 px-2 sm:px-3 hidden md:table-cell">
+                                                            <span className="text-xs sm:text-sm text-foreground">{salary.dueDate}</span>
+                                                        </td>
+                                                        <td className="py-2 sm:py-3 lg:py-4 px-2 sm:px-3">
+                                                            <div className="flex justify-end">
+                                                                <button
+                                                                    onClick={() => handleAddSalary(salary.id)}
+                                                                    className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-teal-600 text-white hover:bg-teal-700"
+                                                                >
+                                                                    <PlusCircle size={12} className="sm:w-3.5 sm:h-3.5" />
+                                                                    <span className="hidden sm:inline">Add Now</span>
+                                                                    <span className="sm:hidden">Add</span>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    {/* Upcoming Salary Entries */}
-                    <div className="rounded-xl px-3 sm:px-4 lg:px-5 py-3 sm:py-4 lg:py-5 bg-card border border-border">
-                        <h3 className="text-xs sm:text-sm lg:text-base font-semibold mb-3 sm:mb-4 text-card-foreground">Upcoming Salary Entries</h3>
+            {/* New Staff Modal */}
+            {showNewStaffModal && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
+                    <div className="bg-card rounded-xl p-3 sm:p-4 lg:p-6 max-w-md w-full border border-border my-8">
+                        <div className="flex items-center justify-between mb-3 sm:mb-4">
+                            <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-card-foreground">Add New Staff</h3>
+                            <button
+                                onClick={() => setShowNewStaffModal(false)}
+                                className="text-muted-foreground hover:text-foreground"
+                                aria-label="Close new staff modal"
+                            >
+                                <X size={18} className="sm:w-5 sm:h-5" />
+                            </button>
+                        </div>
 
-                        <div className="overflow-x-auto -mx-3 sm:mx-0">
+                        <div className="space-y-3 sm:space-y-4">
+                            <div>
+                                <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Name *</label>
+                                <input
+                                    type="text"
+                                    value={newStaff.name}
+                                    onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+                                    className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                    placeholder="Enter staff name"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Phone *</label>
+                                <input
+                                    type="text"
+                                    value={newStaff.phone}
+                                    onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
+                                    className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                    placeholder="+91 98765 43210"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Aadhar Number</label>
+                                <input
+                                    type="text"
+                                    value={newStaff.aadhar}
+                                    onChange={(e) => setNewStaff({ ...newStaff, aadhar: formatAadhar(e.target.value) })}
+                                    className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                    placeholder="1234 5678 9012"
+                                    maxLength={14}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Role</label>
+                                <select
+                                    value={newStaff.role}
+                                    onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
+                                    className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                >
+                                    <option>Cashier</option>
+                                    <option>Chef</option>
+                                    <option>Waiter</option>
+                                    <option>Manager</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">
+                                    Monthly Salary (₹) *
+                                </label>
+                                <input
+                                    type="number"
+                                    value={newStaff.salary}
+                                    onChange={(e) => setNewStaff({ ...newStaff, salary: e.target.value })}
+                                    className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                    placeholder="15000"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Joining Date</label>
+                                <input
+                                    type="date"
+                                    value={newStaff.joined}
+                                    onChange={(e) => setNewStaff({ ...newStaff, joined: e.target.value })}
+                                    className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
+                            <button
+                                onClick={() => setShowNewStaffModal(false)}
+                                className="flex-1 flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-card text-card-foreground hover:bg-muted border border-border"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAddStaff}
+                                className="flex-1 flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-teal-600 text-white hover:bg-teal-700"
+                            >
+                                Add Staff
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Staff Modal */}
+            {showEditModal && editingStaff && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
+                    <div className="bg-card rounded-xl p-3 sm:p-4 lg:p-6 max-w-md w-full border border-border my-8">
+                        <div className="flex items-center justify-between mb-3 sm:mb-4">
+                            <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-card-foreground">Edit Staff</h3>
+                            <button
+                                onClick={() => {
+                                    setShowEditModal(false);
+                                    setEditingStaff(null);
+                                }}
+                                className="text-muted-foreground hover:text-foreground"
+                                aria-label="Close edit staff modal"
+                            >
+                                <X size={18} className="sm:w-5 sm:h-5" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-3 sm:space-y-4">
+                            <div>
+                                <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Name *</label>
+                                <input
+                                    type="text"
+                                    value={editingStaff.name}
+                                    onChange={(e) =>
+                                        setEditingStaff({
+                                            ...editingStaff,
+                                            name: e.target.value,
+                                        })
+                                    }
+                                    className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                    placeholder="Enter staff name"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Phone *</label>
+                                <input
+                                    type="text"
+                                    value={editingStaff.phone}
+                                    onChange={(e) =>
+                                        setEditingStaff({
+                                            ...editingStaff,
+                                            phone: e.target.value,
+                                        })
+                                    }
+                                    className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                    placeholder="+91 98765 43210"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Aadhar Number</label>
+                                <input
+                                    type="text"
+                                    value={editingStaff.aadhar || ''}
+                                    onChange={(e) =>
+                                        setEditingStaff({
+                                            ...editingStaff,
+                                            aadhar: formatAadhar(e.target.value),
+                                        })
+                                    }
+                                    className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                    placeholder="1234 5678 9012"
+                                    maxLength={14}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Role</label>
+                                <select
+                                    value={editingStaff.role}
+                                    onChange={(e) =>
+                                        setEditingStaff({
+                                            ...editingStaff,
+                                            role: e.target.value,
+                                        })
+                                    }
+                                    className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                >
+                                    <option>Cashier</option>
+                                    <option>Chef</option>
+                                    <option>Waiter</option>
+                                    <option>Manager</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">
+                                    Monthly Salary (₹) *
+                                </label>
+                                <input
+                                    type="number"
+                                    value={editingStaff.salary}
+                                    onChange={(e) =>
+                                        setEditingStaff({
+                                            ...editingStaff,
+                                            salary: e.target.value,
+                                        })
+                                    }
+                                    className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
+                                    placeholder="15000"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
+                            <button
+                                onClick={() => {
+                                    setShowEditModal(false);
+                                    setEditingStaff(null);
+                                }}
+                                className="flex-1 flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-card text-card-foreground hover:bg-muted border border-border"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleUpdateStaff}
+                                className="flex-1 flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-teal-600 text-white hover:bg-teal-700"
+                            >
+                                Update Staff
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Simulation Results Modal */}
+            {showSimulationModal && simulationResults && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
+                    <div className="bg-card rounded-xl p-3 sm:p-4 lg:p-6 max-w-2xl w-full border border-border my-8">
+                        <div className="flex items-center justify-between mb-3 sm:mb-4">
+                            <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-card-foreground">
+                                Simulation: Next Payroll Run
+                            </h3>
+                            <button
+                                onClick={() => setShowSimulationModal(false)}
+                                className="text-muted-foreground hover:text-foreground"
+                                aria-label="Close simulation modal"
+                            >
+                                <X size={18} className="sm:w-5 sm:h-5" />
+                            </button>
+                        </div>
+
+                        <div className="mb-4 p-3 sm:p-4 bg-teal-50 dark:bg-teal-950/30 rounded-lg border border-teal-200 dark:border-teal-800">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs sm:text-sm font-medium text-teal-900 dark:text-teal-100">
+                                    Next Run Date
+                                </span>
+                                <span className="text-xs sm:text-sm font-semibold text-teal-900 dark:text-teal-100">
+                                    {simulationResults.nextRunDate}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs sm:text-sm font-medium text-teal-900 dark:text-teal-100">
+                                    Total Amount
+                                </span>
+                                <span className="text-sm sm:text-base lg:text-lg font-bold text-teal-900 dark:text-teal-100">
+                                    ₹{simulationResults.totalAmount?.toLocaleString('en-IN')}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="mb-3 sm:mb-4">
+                            <h4 className="text-xs sm:text-sm font-semibold text-card-foreground mb-2">
+                                Scheduled Entries ({simulationResults.entries?.length})
+                            </h4>
+                        </div>
+
+                        <div className="overflow-x-auto -mx-3 sm:mx-0 max-h-96 overflow-y-auto">
                             <div className="inline-block min-w-full align-middle">
                                 <div className="overflow-hidden">
                                     <table className="min-w-full">
-                                        <thead>
+                                        <thead className="sticky top-0 bg-card z-10">
                                             <tr className="bg-primary/10 border-b border-border">
                                                 <th className="text-left font-semibold py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-muted-foreground">
                                                     Staff
@@ -637,56 +1094,51 @@ const StaffManagement = () => {
                                                     Amount
                                                 </th>
                                                 <th className="text-left font-semibold py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-muted-foreground hidden md:table-cell">
-                                                    Due On
+                                                    Payment Date
                                                 </th>
-                                                <th className="text-right font-semibold py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-muted-foreground">
-                                                    Action
+                                                <th className="text-left font-semibold py-2 sm:py-3 px-2 sm:px-3 text-xs sm:text-sm text-muted-foreground hidden lg:table-cell">
+                                                    Category
                                                 </th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {upcomingSalaries.map((salary) => (
-                                                <tr key={salary.id} className="border-b border-border">
-                                                    <td className="py-2 sm:py-3 lg:py-4 px-2 sm:px-3">
+                                            {simulationResults.entries?.map((entry) => (
+                                                <tr key={entry.id} className="border-b border-border">
+                                                    <td className="py-2 sm:py-3 px-2 sm:px-3">
                                                         <div className="flex items-center gap-2">
                                                             <div
                                                                 className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 rounded-full flex items-center justify-center font-semibold text-xs flex-shrink-0 text-white"
-                                                                style={{ backgroundColor: salary.color }}
+                                                                style={{ backgroundColor: entry.color }}
                                                             >
-                                                                {salary.avatar}
+                                                                {entry.avatar}
                                                             </div>
                                                             <div className="min-w-0">
                                                                 <div className="font-semibold text-xs sm:text-sm text-foreground truncate">
-                                                                    {salary.name}
+                                                                    {entry.name}
                                                                 </div>
                                                                 <div className="text-xs text-muted-foreground">
-                                                                    {salary.role}
+                                                                    {entry.role}
                                                                 </div>
                                                                 <div className="text-xs text-muted-foreground sm:hidden">
-                                                                    {salary.amount} • {salary.dueDate}
+                                                                    {entry.amount} • {entry.nextPaymentDate}
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="py-2 sm:py-3 lg:py-4 px-2 sm:px-3 hidden sm:table-cell">
+                                                    <td className="py-2 sm:py-3 px-2 sm:px-3 hidden sm:table-cell">
                                                         <span className="text-xs sm:text-sm font-semibold text-foreground">
-                                                            {salary.amount}
+                                                            {entry.amount}
                                                         </span>
                                                     </td>
-                                                    <td className="py-2 sm:py-3 lg:py-4 px-2 sm:px-3 hidden md:table-cell">
-                                                        <span className="text-xs sm:text-sm text-foreground">{salary.dueDate}</span>
+                                                    <td className="py-2 sm:py-3 px-2 sm:px-3 hidden md:table-cell">
+                                                        <span className="text-xs sm:text-sm text-foreground">
+                                                            {entry.nextPaymentDate}
+                                                        </span>
                                                     </td>
-                                                    <td className="py-2 sm:py-3 lg:py-4 px-2 sm:px-3">
-                                                        <div className="flex justify-end">
-                                                            <button
-                                                                onClick={() => handleAddSalary(salary.id)}
-                                                                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-teal-600 text-white hover:bg-teal-700"
-                                                            >
-                                                                <PlusCircle size={12} className="sm:w-3.5 sm:h-3.5" />
-                                                                <span className="hidden sm:inline">Add Now</span>
-                                                                <span className="sm:hidden">Add</span>
-                                                            </button>
-                                                        </div>
+                                                    <td className="py-2 sm:py-3 px-2 sm:px-3 hidden lg:table-cell">
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {entry.category}
+                                                        </span>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -695,243 +1147,27 @@ const StaffManagement = () => {
                                 </div>
                             </div>
                         </div>
+
+                        <div className="mt-4 sm:mt-6 p-3 bg-muted rounded-lg">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
+                                <strong>Note:</strong> This is a simulation based on current automation rules. 
+                                The system will automatically add these entries to expenses on their respective payment dates at {automation.autoAddTime}.
+                            </p>
+                        </div>
+
+                        <div className="flex justify-end mt-4 sm:mt-6">
+                            <button
+                                onClick={() => setShowSimulationModal(false)}
+                                className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-teal-600 text-white hover:bg-teal-700"
+                            >
+                                Close
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
+    );
+};
 
-        {/* New Staff Modal */}
-        {showNewStaffModal && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
-                <div className="bg-card rounded-xl p-3 sm:p-4 lg:p-6 max-w-md w-full border border-border my-8">
-                    <div className="flex items-center justify-between mb-3 sm:mb-4">
-                        <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-card-foreground">Add New Staff</h3>
-                        <button
-                            onClick={() => setShowNewStaffModal(false)}
-                            className="text-muted-foreground hover:text-foreground"
-                            aria-label="Close new staff modal"
-                        >
-                            <X size={18} className="sm:w-5 sm:h-5" />
-                        </button>
-                    </div>
-
-                    <div className="space-y-3 sm:space-y-4">
-                        <div>
-                            <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Name *</label>
-                            <input
-                                type="text"
-                                value={newStaff.name}
-                                onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
-                                className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                                placeholder="Enter staff name"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Phone *</label>
-                            <input
-                                type="text"
-                                value={newStaff.phone}
-                                onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
-                                className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                                placeholder="+91 98765 43210"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Aadhar Number</label>
-                            <input
-                                type="text"
-                                value={newStaff.aadhar}
-                                onChange={(e) => setNewStaff({ ...newStaff, aadhar: formatAadhar(e.target.value) })}
-                                className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                                placeholder="1234 5678 9012"
-                                maxLength={14}
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Role</label>
-                            <select
-                                value={newStaff.role}
-                                onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
-                                className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                            >
-                                <option>Cashier</option>
-                                <option>Chef</option>
-                                <option>Waiter</option>
-                                <option>Manager</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">
-                                Monthly Salary (₹) *
-                            </label>
-                            <input
-                                type="number"
-                                value={newStaff.salary}
-                                onChange={(e) => setNewStaff({ ...newStaff, salary: e.target.value })}
-                                className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                                placeholder="15000"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Joining Date</label>
-                            <input
-                                type="date"
-                                value={newStaff.joined}
-                                onChange={(e) => setNewStaff({ ...newStaff, joined: e.target.value })}
-                                className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
-                        <button
-                            onClick={() => setShowNewStaffModal(false)}
-                            className="flex-1 flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-card text-card-foreground hover:bg-muted border border-border"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleAddStaff}
-                            className="flex-1 flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-teal-600 text-white hover:bg-teal-700"
-                        >
-                            Add Staff
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )}
-
-        {/* Edit Staff Modal */}
-        {showEditModal && editingStaff && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
-                <div className="bg-card rounded-xl p-3 sm:p-4 lg:p-6 max-w-md w-full border border-border my-8">
-                    <div className="flex items-center justify-between mb-3 sm:mb-4">
-                        <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-card-foreground">Edit Staff</h3>
-                        <button
-                            onClick={() => {
-                                setShowEditModal(false);
-                                setEditingStaff(null);
-                            }}
-                            className="text-muted-foreground hover:text-foreground"
-                            aria-label="Close edit staff modal"
-                        >
-                            <X size={18} className="sm:w-5 sm:h-5" />
-                        </button>
-                    </div>
-
-                    <div className="space-y-3 sm:space-y-4">
-                        <div>
-                            <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Name *</label>
-                            <input
-                                type="text"
-                                value={editingStaff.name}
-                                onChange={(e) =>
-                                    setEditingStaff({
-                                        ...editingStaff,
-                                        name: e.target.value,
-                                    })
-                                }
-                                className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                                placeholder="Enter staff name"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Phone *</label>
-                            <input
-                                type="text"
-                                value={editingStaff.phone}
-                                onChange={(e) =>
-                                    setEditingStaff({
-                                        ...editingStaff,
-                                        phone: e.target.value,
-                                    })
-                                }
-                                className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                                placeholder="+91 98765 43210"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Aadhar Number</label>
-                            <input
-                                type="text"
-                                value={editingStaff.aadhar || ''}
-                                onChange={(e) =>
-                                    setEditingStaff({
-                                        ...editingStaff,
-                                        aadhar: formatAadhar(e.target.value),
-                                    })
-                                }
-                                className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                                placeholder="1234 5678 9012"
-                                maxLength={14}
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">Role</label>
-                            <select
-                                value={editingStaff.role}
-                                onChange={(e) =>
-                                    setEditingStaff({
-                                        ...editingStaff,
-                                        role: e.target.value,
-                                    })
-                                }
-                                className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                            >
-                                <option>Cashier</option>
-                                <option>Chef</option>
-                                <option>Waiter</option>
-                                <option>Manager</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs sm:text-sm mb-1.5 sm:mb-2 text-muted-foreground">
-                                Monthly Salary (₹) *
-                            </label>
-                            <input
-                                type="number"
-                                value={editingStaff.salary}
-                                onChange={(e) =>
-                                    setEditingStaff({
-                                        ...editingStaff,
-                                        salary: e.target.value,
-                                    })
-                                }
-                                className="w-full text-xs sm:text-sm px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none"
-                                placeholder="15000"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
-                        <button
-                            onClick={() => {
-                                setShowEditModal(false);
-                                setEditingStaff(null);
-                            }}
-                            className="flex-1 flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-card text-card-foreground hover:bg-muted border border-border"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleUpdateStaff}
-                            className="flex-1 flex items-center justify-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium transition-colors text-xs sm:text-sm bg-teal-600 text-white hover:bg-teal-700"
-                        >
-                            Update Staff
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )}
-    </div>
-);};
 export default StaffManagement;
