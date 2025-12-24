@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Calendar, RefreshCw, Printer, Download, Eye } from 'lucide-react';
+import { Search, Calendar, RefreshCw, Printer, Download, Eye, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const PastOrders = () => {
@@ -8,6 +8,8 @@ const PastOrders = () => {
   const [statusFilter, setStatusFilter] = useState('All / Paid / Refunded');
   const [paymentFilter, setPaymentFilter] = useState('All / UPI / Cash');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const initialOrders = [
     {
@@ -98,41 +100,12 @@ const PastOrders = () => {
   };
 
   const handlePrintBill = (order) => {
-    console.log(`Printing bill for ${order.id}`);
-    
-    const billContent = `
-      ============================
-      RESTAURANT NAME
-      ============================
-      
-      Order ID: ${order.id}
-      Type: ${order.type}
-      Date: ${selectedDate}
-      Time: ${order.time}
-      
-      Customer: ${order.customer.name}
-      
-      ----------------------------
-      Items: ${order.items}
-      
-      Subtotal:     ₹ ${order.subtotal.toFixed(2)}
-      GST:          ₹ ${order.gst.toFixed(2)}
-      ${order.discount ? `Discount:     - ₹ ${order.discount.toFixed(2)}` : ''}
-      
-      ----------------------------
-      TOTAL:        ₹ ${order.total.toFixed(2)}
-      ----------------------------
-      
-      Payment Method: ${order.payment}
-      
-      Thank you for your visit!
-      ============================
-    `;
-    
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write('<pre>' + billContent + '</pre>');
-    printWindow.document.close();
-    printWindow.print();
+    setSelectedOrder(order);
+    setShowBillModal(true);
+  };
+
+  const handleActualPrint = () => {
+    window.print();
   };
 
   const handleDownloadBill = (order) => {
@@ -170,46 +143,8 @@ Thank you for your visit!`;
   };
 
   const handleViewBill = (order) => {
-    console.log(`Viewing bill for ${order.id}`);
-    
-    const billContent = `
-      <div style="font-family: monospace; padding: 20px; max-width: 400px; margin: 0 auto;">
-        <h2 style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px;">RESTAURANT NAME</h2>
-        
-        <div style="margin: 20px 0;">
-          <p><strong>Order ID:</strong> ${order.id}</p>
-          <p><strong>Type:</strong> ${order.type}</p>
-          <p><strong>Date:</strong> ${selectedDate}</p>
-          <p><strong>Time:</strong> ${order.time}</p>
-        </div>
-        
-        <p><strong>Customer:</strong> ${order.customer.name}</p>
-        
-        <hr style="border: 1px dashed #000; margin: 20px 0;">
-        
-        <p><strong>Items:</strong> ${order.items}</p>
-        
-        <div style="margin: 20px 0;">
-          <p>Subtotal: <span style="float: right;">₹ ${order.subtotal.toFixed(2)}</span></p>
-          <p>GST: <span style="float: right;">₹ ${order.gst.toFixed(2)}</span></p>
-          ${order.discount ? `<p>Discount: <span style="float: right;">- ₹ ${order.discount.toFixed(2)}</span></p>` : ''}
-        </div>
-        
-        <hr style="border: 2px solid #000; margin: 20px 0;">
-        
-        <p style="font-size: 18px;"><strong>TOTAL: <span style="float: right;">₹ ${order.total.toFixed(2)}</span></strong></p>
-        
-        <hr style="border: 2px solid #000; margin: 20px 0;">
-        
-        <p><strong>Payment Method:</strong> ${order.payment}</p>
-        
-        <p style="text-align: center; margin-top: 30px;">Thank you for your visit!</p>
-      </div>
-    `;
-    
-    const viewWindow = window.open('', '_blank');
-    viewWindow.document.write(billContent);
-    viewWindow.document.close();
+    setSelectedOrder(order);
+    setShowBillModal(true);
   };
 
   const CustomTooltip = ({ active, payload }) => {
@@ -227,6 +162,100 @@ Thank you for your visit!`;
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Bill Modal */}
+      {showBillModal && selectedOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-xl rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white dark:bg-card border-b border-border px-6 py-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-foreground">Bill Preview</h3>
+              <button
+                onClick={() => setShowBillModal(false)}
+                className="p-1 hover:bg-muted rounded transition-colors"
+              >
+                <X size={20} className="text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Bill Content */}
+            <div className="p-6" id="bill-content">
+              <div className="font-mono">
+                <h2 className="text-center text-xl font-bold border-b-2 border-foreground pb-3 mb-4 text-foreground">
+                  RESTAURANT NAME
+                </h2>
+                
+                <div className="space-y-2 mb-4">
+                  <p className="text-foreground"><strong>Order ID:</strong> {selectedOrder.id}</p>
+                  <p className="text-foreground"><strong>Type:</strong> {selectedOrder.type}</p>
+                  <p className="text-foreground"><strong>Date:</strong> {selectedDate}</p>
+                  <p className="text-foreground"><strong>Time:</strong> {selectedOrder.time}</p>
+                </div>
+                
+                <p className="mb-4 text-foreground"><strong>Customer:</strong> {selectedOrder.customer.name}</p>
+                
+                <hr className="border-dashed border-foreground my-4" />
+                
+                <p className="mb-4 text-foreground"><strong>Items:</strong> {selectedOrder.items}</p>
+                
+                <div className="space-y-2 mb-4">
+                  <div className="flex justify-between text-foreground">
+                    <span>Subtotal:</span>
+                    <span>₹ {selectedOrder.subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-foreground">
+                    <span>GST:</span>
+                    <span>₹ {selectedOrder.gst.toFixed(2)}</span>
+                  </div>
+                  {selectedOrder.discount && (
+                    <div className="flex justify-between text-foreground">
+                      <span>Discount:</span>
+                      <span>- ₹ {selectedOrder.discount.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <hr className="border-2 border-foreground my-4" />
+                
+                <div className="flex justify-between text-lg font-bold mb-4 text-foreground">
+                  <span>TOTAL:</span>
+                  <span>₹ {selectedOrder.total.toFixed(2)}</span>
+                </div>
+                
+                <hr className="border-2 border-foreground my-4" />
+                
+                <p className="mb-4 text-foreground"><strong>Payment Method:</strong> {selectedOrder.payment}</p>
+                
+                <p className="text-center mt-6 text-foreground">Thank you for your visit!</p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-white dark:bg-card border-t border-border px-6 py-4 flex gap-3">
+              <button
+                onClick={handleActualPrint}
+                className="flex-1 flex items-center justify-center gap-2 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                <Printer size={16} />
+                <span>Print</span>
+              </button>
+              <button
+                onClick={() => handleDownloadBill(selectedOrder)}
+                className="flex-1 flex items-center justify-center gap-2 py-2 bg-muted text-foreground rounded-lg hover:bg-secondary transition-colors"
+              >
+                <Download size={16} />
+                <span>Download</span>
+              </button>
+              <button
+                onClick={() => setShowBillModal(false)}
+                className="flex-1 py-2 bg-muted text-foreground rounded-lg hover:bg-secondary transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">

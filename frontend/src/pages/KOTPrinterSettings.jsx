@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Bluetooth, WifiOff, Search, Save, Printer, Info, Zap, RotateCw, CheckCircle, XCircle } from 'lucide-react';
+import { Bluetooth, WifiOff, Search, Save, Printer, Info, Zap, RotateCw, CheckCircle, XCircle, Edit2, X } from 'lucide-react';
 
 const KOTPrinterSettings = () => {
   const [scanning, setScanning] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [testPrintStatus, setTestPrintStatus] = useState(null); // 'success', 'error', or null
-  const [saveStatus, setSaveStatus] = useState(null); // 'success', 'error', or null
+  const [testPrintStatus, setTestPrintStatus] = useState(null);
+  const [saveStatus, setSaveStatus] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [activePrinter, setActivePrinter] = useState({
     name: 'BT-P58A',
     mac: 'AA:4C:12:8F:22:91',
@@ -44,14 +46,17 @@ const KOTPrinterSettings = () => {
   };
 
   const handleTestPrint = async () => {
+    // Show preview popup instead of printing
+    setShowPrintPreview(true);
+  };
+
+  const handleActualPrint = async () => {
     setTestPrintStatus('loading');
     
     try {
-      // Simulate print job
       console.log('Sending test print to printer:', activePrinter.name);
       console.log('Printer settings:', settings);
       
-      // Simulate print data
       const kotData = {
         header: settings.headerText,
         orderNumber: '#1027',
@@ -68,31 +73,21 @@ const KOTPrinterSettings = () => {
       
       console.log('KOT Data to print:', kotData);
       
-      // Simulate printer communication delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Check if printer is connected
       if (!activePrinter.connected) {
         throw new Error('Printer not connected');
       }
       
-      // Success
       setTestPrintStatus('success');
-      
-      // Show success message with alert
       alert(`✅ Test Print Successful!\n\nPrinter: ${activePrinter.name}\nMAC: ${activePrinter.mac}\n\nA test KOT has been sent to your printer.`);
-      
-      // Reset status after 3 seconds
       setTimeout(() => setTestPrintStatus(null), 3000);
+      setShowPrintPreview(false);
       
     } catch (error) {
       console.error('Print error:', error);
       setTestPrintStatus('error');
-      
-      // Show error message
       alert(`❌ Test Print Failed!\n\nError: ${error.message}\n\nPlease check:\n- Printer is powered on\n- Bluetooth connection is stable\n- Paper is loaded`);
-      
-      // Reset status after 3 seconds
       setTimeout(() => setTestPrintStatus(null), 3000);
     }
   };
@@ -104,7 +99,6 @@ const KOTPrinterSettings = () => {
       console.log('Saving printer settings...');
       console.log('Settings to save:', settings);
       
-      // Validate settings
       if (!settings.headerText.trim()) {
         throw new Error('Header text cannot be empty');
       }
@@ -113,35 +107,24 @@ const KOTPrinterSettings = () => {
         throw new Error('Footer text cannot be empty');
       }
       
-      // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Save to localStorage (you can replace with API call)
       localStorage.setItem('kotPrinterSettings', JSON.stringify(settings));
       localStorage.setItem('activePrinter', JSON.stringify(activePrinter));
       
-      // Success
       setSaveStatus('success');
-      
-      // Show success message
       alert(`✅ Settings Saved Successfully!\n\nPrinter: ${activePrinter.name}\nPaper Width: ${settings.paperWidth}\nFont Size: ${settings.fontSize}\n\nYour KOT printer is ready to use.`);
-      
-      // Reset status after 3 seconds
       setTimeout(() => setSaveStatus(null), 3000);
+      setIsEditing(false);
       
     } catch (error) {
       console.error('Save error:', error);
       setSaveStatus('error');
-      
-      // Show error message
       alert(`❌ Failed to Save Settings!\n\nError: ${error.message}\n\nPlease try again.`);
-      
-      // Reset status after 3 seconds
       setTimeout(() => setSaveStatus(null), 3000);
     }
   };
 
-  // Filter devices based on search
   const filteredDevices = availableDevices.filter(device => 
     searchQuery === '' ||
     device.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -234,6 +217,15 @@ const KOTPrinterSettings = () => {
                       Bluetooth
                     </span>
                   </div>
+                  {!isEditing && (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors text-[14px] bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      <Edit2 size={16} />
+                      Edit
+                    </button>
+                  )}
                 </div>
 
                 {/* Printer Info */}
@@ -262,7 +254,8 @@ const KOTPrinterSettings = () => {
                       type="text"
                       value={settings.paperWidth}
                       onChange={(e) => setSettings({...settings, paperWidth: e.target.value})}
-                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px]"
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px] disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -271,7 +264,8 @@ const KOTPrinterSettings = () => {
                       type="text"
                       value={settings.characterSet}
                       onChange={(e) => setSettings({...settings, characterSet: e.target.value})}
-                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px]"
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px] disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -280,7 +274,8 @@ const KOTPrinterSettings = () => {
                       type="text"
                       value={settings.density}
                       onChange={(e) => setSettings({...settings, density: e.target.value})}
-                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px]"
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px] disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -292,7 +287,8 @@ const KOTPrinterSettings = () => {
                       type="text"
                       value={settings.headerText}
                       onChange={(e) => setSettings({...settings, headerText: e.target.value})}
-                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px]"
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px] disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -301,7 +297,8 @@ const KOTPrinterSettings = () => {
                       type="text"
                       value={settings.footerText}
                       onChange={(e) => setSettings({...settings, footerText: e.target.value})}
-                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px]"
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px] disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -322,7 +319,8 @@ const KOTPrinterSettings = () => {
                       type="text"
                       value={settings.cutMode}
                       onChange={(e) => setSettings({...settings, cutMode: e.target.value})}
-                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px]"
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px] disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -331,7 +329,8 @@ const KOTPrinterSettings = () => {
                       type="text"
                       value={settings.printCopies}
                       onChange={(e) => setSettings({...settings, printCopies: e.target.value})}
-                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px]"
+                      disabled={!isEditing}
+                      className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px] disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -342,7 +341,8 @@ const KOTPrinterSettings = () => {
                     type="text"
                     value={settings.fontSize}
                     onChange={(e) => setSettings({...settings, fontSize: e.target.value})}
-                    className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px]"
+                    disabled={!isEditing}
+                    className="w-full px-3 py-2.5 rounded-lg border border-border bg-muted text-foreground focus:outline-none text-[15px] disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -350,70 +350,30 @@ const KOTPrinterSettings = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={handleTestPrint}
-                    disabled={testPrintStatus === 'loading'}
-                    className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-colors text-[14px] ${
-                      testPrintStatus === 'success' 
-                        ? 'bg-green-600 text-white hover:bg-green-700'
-                        : testPrintStatus === 'error'
-                        ? 'bg-red-600 text-white hover:bg-red-700'
-                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-colors text-[14px] bg-primary text-primary-foreground hover:bg-primary/90"
                   >
-                    {testPrintStatus === 'loading' ? (
-                      <>
-                        <RotateCw size={16} className="animate-spin" />
-                        Printing...
-                      </>
-                    ) : testPrintStatus === 'success' ? (
-                      <>
-                        <CheckCircle size={16} />
-                        Print Success!
-                      </>
-                    ) : testPrintStatus === 'error' ? (
-                      <>
-                        <XCircle size={16} />
-                        Print Failed
-                      </>
-                    ) : (
-                      <>
-                        <Printer size={16} />
-                        Test Print
-                      </>
-                    )}
+                    <Printer size={16} />
+                    Test Print
                   </button>
-                  <button
-                    onClick={handleSaveSettings}
-                    disabled={saveStatus === 'loading'}
-                    className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-colors text-[14px] ${
-                      saveStatus === 'success'
-                        ? 'bg-green-600 text-white hover:bg-green-700'
-                        : saveStatus === 'error'
-                        ? 'bg-red-600 text-white hover:bg-red-700'
-                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    {saveStatus === 'loading' ? (
-                      <>
-                        <RotateCw size={16} className="animate-spin" />
-                        Saving...
-                      </>
-                    ) : saveStatus === 'success' ? (
-                      <>
-                        <CheckCircle size={16} />
-                        Saved!
-                      </>
-                    ) : saveStatus === 'error' ? (
-                      <>
-                        <XCircle size={16} />
-                        Save Failed
-                      </>
-                    ) : (
-                      <>
-                        <Save size={16} />
-                        Save Settings
-                      </>
-                    )}
-                  </button>
+                  {isEditing && (
+                    <button
+                      onClick={handleSaveSettings}
+                      disabled={saveStatus === 'loading'}
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-colors text-[14px] bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {saveStatus === 'loading' ? (
+                        <>
+                          <RotateCw size={16} className="animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save size={16} />
+                          Save Settings
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -507,6 +467,104 @@ const KOTPrinterSettings = () => {
           </div>
         </div>
       </div>
+
+      {/* Print Preview Popup */}
+      {showPrintPreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-lg max-w-md w-full p-6 relative border border-border">
+            <button
+              onClick={() => setShowPrintPreview(false)}
+              className="absolute top-4 right-4 p-1 hover:bg-muted rounded-lg transition-colors"
+            >
+              <X size={20} className="text-foreground" />
+            </button>
+
+            <h3 className="text-[20px] font-bold mb-4 text-foreground">Print Preview</h3>
+
+            {/* KOT Preview */}
+            <div className="rounded-lg p-4 bg-muted border border-border mb-5">
+              <div className="text-center mb-4">
+                <h4 className="text-[17px] font-bold text-foreground">{settings.headerText}</h4>
+                <p className="text-[14px] mt-1 text-muted-foreground">Order #1027 • Dine-in • 10:42 AM</p>
+              </div>
+
+              <div className="space-y-3 mb-4 border-t border-dashed border-border pt-3">
+                <div className="flex justify-between">
+                  <span className={`font-semibold text-foreground ${
+                    settings.fontSize === 'Small' ? 'text-[13px]' : 
+                    settings.fontSize === 'Medium' ? 'text-[15px]' : 'text-[17px]'
+                  }`}>1x Paneer Roll</span>
+                  <span className={`text-foreground ${
+                    settings.fontSize === 'Small' ? 'text-[13px]' : 
+                    settings.fontSize === 'Medium' ? 'text-[15px]' : 'text-[17px]'
+                  }`}>₹120</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className={`font-semibold text-foreground ${
+                    settings.fontSize === 'Small' ? 'text-[13px]' : 
+                    settings.fontSize === 'Medium' ? 'text-[15px]' : 'text-[17px]'
+                  }`}>2x Masala Chai</span>
+                  <span className={`text-foreground ${
+                    settings.fontSize === 'Small' ? 'text-[13px]' : 
+                    settings.fontSize === 'Medium' ? 'text-[15px]' : 'text-[17px]'
+                  }`}>₹80</span>
+                </div>
+                <div className="text-[14px] text-muted-foreground">
+                  <span className="font-semibold">Notes</span>
+                  <p className="mt-1">No onion</p>
+                </div>
+              </div>
+
+              {settings.showGST && (
+                <div className="mb-3 pb-3 border-b border-dashed border-border">
+                  <div className="flex justify-between text-[13px]">
+                    <span className="text-muted-foreground">GST (5%)</span>
+                    <span className="text-foreground">₹10</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-dashed border-border">
+                <div className="flex justify-between">
+                  <span className="text-[15px] font-bold text-foreground">Total Items</span>
+                  <span className="text-[15px] font-bold text-foreground">3</span>
+                </div>
+              </div>
+
+              <div className="text-center mt-4 pt-3 border-t border-dashed border-border">
+                <p className="text-[13px] text-muted-foreground">{settings.footerText}</p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPrintPreview(false)}
+                className="flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors text-[14px] bg-muted text-foreground hover:bg-muted/80 border border-border"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleActualPrint}
+                disabled={testPrintStatus === 'loading'}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors text-[14px] bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {testPrintStatus === 'loading' ? (
+                  <>
+                    <RotateCw size={16} className="animate-spin" />
+                    Printing...
+                  </>
+                ) : (
+                  <>
+                    <Printer size={16} />
+                    Print
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

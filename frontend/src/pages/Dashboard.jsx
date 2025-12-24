@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DollarSign, ShoppingBag, TrendingUp, Wallet } from 'lucide-react';
 
 const Dashboard = ({ isDarkMode = true, onNavigate }) => {
+  // View state
   const [showAllOrders, setShowAllOrders] = useState(false);
   
   // Modal states
@@ -16,6 +17,7 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
   const [newStaff, setNewStaff] = useState({ name: '', role: 'Cashier', salary: '', joinDate: '' });
   const [newExpense, setNewExpense] = useState({ title: '', amount: '', date: '', category: 'Supplies' });
 
+  // Data states
   const [recentOrders, setRecentOrders] = useState([
     { id: 1256, type: 'Dine-In', time: '2m ago', amount: 320 },
     { id: 1255, type: 'Takeaway', time: '10m ago', amount: 580 },
@@ -48,6 +50,7 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
     { title: 'Vegetables', amount: '₹ 2,150', date: '02 Nov 2025', source: 'Manual' }
   ]);
 
+  // Add functions
   const addCustomer = () => {
     if (newCustomer.name && newCustomer.phone) {
       setCustomers([...customers, { ...newCustomer, orders: 0 }]);
@@ -101,8 +104,6 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
     }
   };
 
-  const displayedOrders = showAllOrders ? recentOrders : recentOrders.slice(0, 3);
-
   // Navigation handlers
   const handleNavigateToPOS = () => {
     if (onNavigate) {
@@ -132,13 +133,16 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
     handleNavigateToPastOrders();
   };
 
+  // Computed values
+  const displayedOrders = showAllOrders ? recentOrders : recentOrders.slice(0, 3);
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-background min-h-screen">
-      {/* Modals */}
+      {/* Customer Modal */}
       {showCustomerModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold text-card-foreground mb-4">Add Customer</h3>
+          <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-xl rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-foreground dark:text-card-foreground mb-4">Add Customer</h3>
             <input 
               type="text"
               placeholder="Full name"
@@ -168,10 +172,11 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
         </div>
       )}
 
+      {/* Offer Modal */}
       {showOfferModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold text-card-foreground mb-4">Create Offer</h3>
+          <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-xl rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-foreground dark:text-card-foreground mb-4">Create Offer</h3>
             <input 
               type="text"
               placeholder="Coupon code (e.g. SAVE10)"
@@ -209,10 +214,11 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
         </div>
       )}
 
+      {/* Staff Modal */}
       {showStaffModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold text-card-foreground mb-4">Add Staff</h3>
+          <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-xl rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-foreground dark:text-card-foreground mb-4">Add Staff</h3>
             <input 
               type="text"
               placeholder="Full name"
@@ -251,10 +257,11 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
         </div>
       )}
 
+      {/* Expense Modal */}
       {showExpenseModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold text-card-foreground mb-4">Add Expense</h3>
+          <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-xl rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-foreground dark:text-card-foreground mb-4">Add Expense</h3>
             <input 
               type="text"
               placeholder="Expense title (e.g. Milk purchase)"
@@ -298,30 +305,30 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
         <h2 className="text-2xl font-semibold text-foreground">Dashboard</h2>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Updated with enhanced hover effects */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
-        <div className="bg-card rounded-xl p-4 sm:p-6">
+        <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-sm hover:shadow-lg hover:scale-105 rounded-xl p-4 sm:p-6 transition-all duration-300 cursor-pointer">
           <div className="flex items-center justify-between mb-2 sm:mb-3">
             <p className="text-muted-foreground text-xs sm:text-sm">Today Sales</p>
             <DollarSign className="text-teal-400" size={18} />
           </div>
           <p className="text-xl sm:text-3xl font-bold text-card-foreground">₹12,450</p>
         </div>
-        <div className="bg-card rounded-xl p-4 sm:p-6">
+        <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-sm hover:shadow-lg hover:scale-105 rounded-xl p-4 sm:p-6 transition-all duration-300 cursor-pointer">
           <div className="flex items-center justify-between mb-2 sm:mb-3">
             <p className="text-muted-foreground text-xs sm:text-sm">Orders</p>
             <ShoppingBag className="text-teal-400" size={18} />
           </div>
           <p className="text-xl sm:text-3xl font-bold text-card-foreground">86</p>
         </div>
-        <div className="bg-card rounded-xl p-4 sm:p-6">
+        <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-sm hover:shadow-lg hover:scale-105 rounded-xl p-4 sm:p-6 transition-all duration-300 cursor-pointer">
           <div className="flex items-center justify-between mb-2 sm:mb-3">
             <p className="text-muted-foreground text-xs sm:text-sm">Avg Ticket</p>
             <TrendingUp className="text-teal-400" size={18} />
           </div>
           <p className="text-xl sm:text-3xl font-bold text-card-foreground">₹145</p>
         </div>
-        <div className="bg-card rounded-xl p-4 sm:p-6">
+        <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-sm hover:shadow-lg hover:scale-105 rounded-xl p-4 sm:p-6 transition-all duration-300 cursor-pointer">
           <div className="flex items-center justify-between mb-2 sm:mb-3">
             <p className="text-muted-foreground text-xs sm:text-sm">Expenses</p>
             <Wallet className="text-teal-400" size={18} />
@@ -333,7 +340,7 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
       {/* Quick Links, Recent Orders, Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Quick Links */}
-        <div className="bg-card rounded-xl p-4 sm:p-6">
+        <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-sm hover:shadow-md rounded-xl p-4 sm:p-6 transition-shadow">
           <h3 className="text-base sm:text-lg font-semibold text-card-foreground mb-4">Quick Links</h3>
           <div className="space-y-3">
             <button 
@@ -370,7 +377,7 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
         </div>
 
         {/* Recent Orders */}
-        <div className="bg-card rounded-xl p-4 sm:p-6">
+        <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-sm hover:shadow-md rounded-xl p-4 sm:p-6 transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base sm:text-lg font-semibold text-card-foreground">Recent Orders</h3>
             <button 
@@ -393,12 +400,12 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
           </div>
         </div>
 
-        {/* Activity */}
-        <div className="bg-card rounded-xl p-4 sm:p-6">
+        {/* Activity - Updated with card design for each activity */}
+        <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-sm hover:shadow-md rounded-xl p-4 sm:p-6 transition-shadow">
           <h3 className="text-base sm:text-lg font-semibold text-card-foreground mb-4">Activity</h3>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {activities.map((activity, idx) => (
-              <div key={idx} className="flex items-center justify-between">
+              <div key={idx} className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-secondary transition-colors">
                 <p className="text-foreground text-sm sm:text-base">{activity.action}</p>
                 <p className="text-xs sm:text-sm text-muted-foreground">{activity.time}</p>
               </div>
@@ -410,7 +417,7 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
       {/* Customers, Offers */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {/* Customers */}
-        <div className="bg-card rounded-xl p-4 sm:p-6">
+        <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-sm hover:shadow-md rounded-xl p-4 sm:p-6 transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base sm:text-lg font-semibold text-card-foreground">Customers</h3>
             <button 
@@ -431,7 +438,7 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
         </div>
 
         {/* Offers */}
-        <div className="bg-card rounded-xl p-4 sm:p-6">
+        <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-sm hover:shadow-md rounded-xl p-4 sm:p-6 transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base sm:text-lg font-semibold text-card-foreground">Offers</h3>
             <button 
@@ -465,7 +472,7 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
       {/* Staff, Expenses */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Staff */}
-        <div className="bg-card rounded-xl p-4 sm:p-6">
+        <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-sm hover:shadow-md rounded-xl p-4 sm:p-6 transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base sm:text-lg font-semibold text-card-foreground">Staff</h3>
             <button 
@@ -496,7 +503,7 @@ const Dashboard = ({ isDarkMode = true, onNavigate }) => {
         </div>
 
         {/* Expenses */}
-        <div className="bg-card rounded-xl p-4 sm:p-6">
+        <div className="bg-white dark:bg-card border border-gray-200 dark:border-border shadow-sm hover:shadow-md rounded-xl p-4 sm:p-6 transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-base sm:text-lg font-semibold text-card-foreground">Expenses</h3>
             <button 

@@ -1,40 +1,22 @@
 import React, { useState } from 'react';
-import { Search, Plus, Download, Upload, Coffee, Pizza, Utensils, Cookie, X, Pencil, IceCream, Sandwich, Soup, Wine, Cake, Apple } from 'lucide-react';
+import { Search, Plus, Download, Upload, Coffee, Pizza, Utensils, Cookie, X, Pencil, IceCream, Sandwich, Soup, Wine, Cake, Apple, Trash2, Check } from 'lucide-react';
 
-// Product Card Component with Size Selection
+// Product Card Component - with Edit and Delete buttons
 const ProductCard = ({ product, onEdit, onDelete }) => {
-  const [selectedSizeIndex, setSelectedSizeIndex] = useState(0);
-  
-  const enabledSizes = product.sizes.filter(s => s.enabled);
-  const selectedSize = enabledSizes[selectedSizeIndex];
-
   return (
     <div className="bg-muted border border-border rounded-lg p-4">
       <h3 className="text-foreground font-medium mb-3 text-sm sm:text-base">{product.name}</h3>
       
-      {/* Size Selection Chips */}
+      {/* Plain Size Display Chips - No interaction, no selection */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        {enabledSizes.map((sizeData, idx) => (
-          <button
+        {product.sizes.map((sizeData, idx) => (
+          <div
             key={idx}
-            onClick={() => setSelectedSizeIndex(idx)}
-            className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-              selectedSizeIndex === idx
-                ? 'bg-teal-600 text-white border-2 border-teal-700 shadow-md'
-                : 'bg-background text-foreground border-2 border-border hover:border-teal-400'
-            }`}
+            className="px-3 py-2 rounded-lg text-xs font-medium bg-background text-foreground border border-border"
           >
             {sizeData.size} ₹{sizeData.price}
-          </button>
+          </div>
         ))}
-      </div>
-
-      {/* Selected Size Display */}
-      <div className="mb-3 p-2 bg-background rounded-lg border border-border">
-        <p className="text-xs text-muted-foreground">Selected:</p>
-        <p className="text-sm font-semibold text-foreground">
-          {selectedSize.size} - ₹{selectedSize.price}
-        </p>
       </div>
 
       {/* Action Buttons */}
@@ -65,7 +47,6 @@ const Menu = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
-  const [selectedProductSizes, setSelectedProductSizes] = useState({}); // Track selected size per product
   
   // Available icons for categories
   const availableIcons = [
@@ -93,42 +74,41 @@ const Menu = () => {
       { 
         name: 'Tea', 
         sizes: [
-          { size: 'Small', price: 15, enabled: true },
-          { size: 'Medium', price: 20, enabled: true },
-          { size: 'Large', price: 25, enabled: false }
+          { size: 'Small', price: 15 },
+          { size: 'Medium', price: 20 },
         ]
       },
       { 
         name: 'Coffee', 
         sizes: [
-          { size: 'Regular', price: 25, enabled: true },
-          { size: 'Large', price: 35, enabled: true }
+          { size: 'Regular', price: 25 },
+          { size: 'Large', price: 35 }
         ]
       },
       { 
         name: 'Cold Coffee', 
         sizes: [
-          { size: 'Medium', price: 60, enabled: true },
-          { size: 'Large', price: 80, enabled: true }
+          { size: 'Medium', price: 60 },
+          { size: 'Large', price: 80 }
         ]
       },
       { 
         name: 'Masala Chai', 
         sizes: [
-          { size: 'Regular', price: 20, enabled: true }
+          { size: 'Regular', price: 20 }
         ]
       },
       { 
         name: 'Lassi', 
         sizes: [
-          { size: 'Regular', price: 40, enabled: true },
-          { size: 'Large', price: 55, enabled: true }
+          { size: 'Regular', price: 40 },
+          { size: 'Large', price: 55 }
         ]
       },
       { 
         name: 'Buttermilk', 
         sizes: [
-          { size: 'Regular', price: 25, enabled: true }
+          { size: 'Regular', price: 25 }
         ]
       },
     ],
@@ -136,14 +116,14 @@ const Menu = () => {
       { 
         name: 'Vada Pav', 
         sizes: [
-          { size: 'Regular', price: 35, enabled: true }
+          { size: 'Regular', price: 35 }
         ]
       },
       { 
         name: 'Samosa', 
         sizes: [
-          { size: 'Regular', price: 20, enabled: true },
-          { size: 'Large', price: 30, enabled: true }
+          { size: 'Regular', price: 20 },
+          { size: 'Large', price: 30 }
         ]
       },
     ],
@@ -151,13 +131,13 @@ const Menu = () => {
       { 
         name: 'Masala Dosa', 
         sizes: [
-          { size: 'Regular', price: 90, enabled: true }
+          { size: 'Regular', price: 90 }
         ]
       },
       { 
         name: 'Plain Dosa', 
         sizes: [
-          { size: 'Regular', price: 70, enabled: true }
+          { size: 'Regular', price: 70 }
         ]
       },
     ],
@@ -165,7 +145,7 @@ const Menu = () => {
       { 
         name: 'Breakfast Combo', 
         sizes: [
-          { size: 'Regular', price: 120, enabled: true }
+          { size: 'Regular', price: 120 }
         ]
       },
     ],
@@ -175,22 +155,19 @@ const Menu = () => {
   const [showNewProductModal, setShowNewProductModal] = useState(false);
   const [showEditCategoryModal, setShowEditCategoryModal] = useState(false);
   const [showEditProductModal, setShowEditProductModal] = useState(false);
-  const [showQuickPriceEditModal, setShowQuickPriceEditModal] = useState(false);
   
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newProductData, setNewProductData] = useState({ 
     name: '', 
     sizes: [
-      { size: 'Small', price: '', enabled: false },
-      { size: 'Regular', price: '', enabled: true },
-      { size: 'Medium', price: '', enabled: false },
-      { size: 'Large', price: '', enabled: false }
+      { size: 'Regular', price: '' }
     ]
   });
 
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [quickPriceEdit, setQuickPriceEdit] = useState(null); // { productName, sizeIndex, currentPrice, size }
+  const [editingRowIndex, setEditingRowIndex] = useState(null); // Track which row is being edited
+  
   const [recentEdits, setRecentEdits] = useState([
     { action: 'Updated price: Coffee → ₹ 25', time: new Date(Date.now() - 120000) },
     { action: 'Added category: Combos', time: new Date(Date.now() - 600000) },
@@ -221,18 +198,14 @@ const Menu = () => {
     setRecentEdits(prev => [
       { action, time: new Date() },
       ...prev
-    ].slice(0, 10)); // Keep only last 10 edits
+    ].slice(0, 10));
   };
 
   // Export functionality
   const handleExport = () => {
-    // Create CSV content with all categories and products
     const csvRows = [];
+    csvRows.push(['Category', 'Product Name', 'Size', 'Price'].join(','));
     
-    // Add header
-    csvRows.push(['Category', 'Product Name', 'Size', 'Price', 'Enabled'].join(','));
-    
-    // Add all products from all categories
     Object.keys(products).forEach(categoryName => {
       products[categoryName].forEach(product => {
         product.sizes.forEach(sizeData => {
@@ -240,16 +213,13 @@ const Menu = () => {
             `"${categoryName}"`,
             `"${product.name}"`,
             `"${sizeData.size}"`,
-            sizeData.price,
-            sizeData.enabled ? 'Yes' : 'No'
+            sizeData.price
           ].join(','));
         });
       });
     });
     
     const csvContent = csvRows.join('\n');
-    
-    // Create blob and download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -319,13 +289,11 @@ const Menu = () => {
       const oldName = editingCategory.originalName;
       const newName = editingCategory.name;
       
-      // Update categories
       const updatedCategories = categories.map(cat =>
         cat.name === oldName ? { ...cat, name: newName, iconName: editingCategory.iconName } : cat
       );
       setCategories(updatedCategories);
 
-      // Update products object if name changed
       if (oldName !== newName) {
         const updatedProducts = { ...products };
         updatedProducts[newName] = updatedProducts[oldName];
@@ -344,16 +312,16 @@ const Menu = () => {
   };
 
   const handleAddProduct = () => {
-    const enabledSizes = newProductData.sizes.filter(s => s.enabled && s.price);
+    const validSizes = newProductData.sizes.filter(s => s.size.trim() && s.price);
     
-    if (newProductData.name.trim() && enabledSizes.length > 0) {
+    if (newProductData.name.trim() && validSizes.length > 0) {
       const updatedProducts = {
         ...products,
         [selectedCategory]: [
           ...products[selectedCategory],
           {
             name: newProductData.name,
-            sizes: enabledSizes.map(s => ({ ...s, price: parseInt(s.price) }))
+            sizes: validSizes.map(s => ({ size: s.size, price: parseInt(s.price) }))
           },
         ],
       };
@@ -368,34 +336,32 @@ const Menu = () => {
       
       setNewProductData({ 
         name: '', 
-        sizes: [
-          { size: 'Small', price: '', enabled: false },
-          { size: 'Regular', price: '', enabled: true },
-          { size: 'Medium', price: '', enabled: false },
-          { size: 'Large', price: '', enabled: false }
-        ]
+        sizes: [{ size: 'Regular', price: '' }]
       });
       setShowNewProductModal(false);
     } else {
-      alert('Please enter product name and at least one size with price');
+      alert('Please enter product name and at least one valid size with price');
     }
   };
 
   const handleEditProduct = (product) => {
+    // Create a deep copy so changes don't affect the original until saved
     setEditingProduct({
-      ...product,
+      name: product.name,
       originalName: product.name,
-      category: selectedCategory
+      category: selectedCategory,
+      sizes: product.sizes.map(s => ({ size: s.size, price: s.price }))
     });
+    setEditingRowIndex(null); // Reset editing row
     setShowEditProductModal(true);
   };
 
   const handleSaveEditProduct = () => {
     if (editingProduct && editingProduct.name.trim()) {
-      const enabledSizes = editingProduct.sizes.filter(s => s.enabled && s.price);
+      const validSizes = editingProduct.sizes.filter(s => s.size.trim() && s.price);
       
-      if (enabledSizes.length === 0) {
-        alert('Please enable at least one size with a price');
+      if (validSizes.length === 0) {
+        alert('Please add at least one size with a price');
         return;
       }
 
@@ -403,14 +369,13 @@ const Menu = () => {
         ...products,
         [editingProduct.category]: products[editingProduct.category].map(p =>
           p.name === editingProduct.originalName
-            ? { ...editingProduct, sizes: enabledSizes.map(s => ({ ...s, price: parseInt(s.price) })) }
+            ? { name: editingProduct.name, sizes: validSizes.map(s => ({ size: s.size, price: parseInt(s.price) })) }
             : p
         )
       };
       setProducts(updatedProducts);
 
-      const priceChanges = editingProduct.sizes
-        .filter(s => s.enabled)
+      const priceChanges = validSizes
         .map(s => `${s.size} → ₹${s.price}`)
         .join(', ');
       
@@ -418,6 +383,7 @@ const Menu = () => {
       
       setShowEditProductModal(false);
       setEditingProduct(null);
+      setEditingRowIndex(null);
     }
   };
 
@@ -453,45 +419,68 @@ const Menu = () => {
     }
   };
 
-  const handleQuickPriceEdit = (product, sizeIndex) => {
-    setQuickPriceEdit({
-      productName: product.name,
-      sizeIndex: sizeIndex,
-      currentPrice: product.sizes[sizeIndex].price.toString(),
-      size: product.sizes[sizeIndex].size
-    });
-    setShowQuickPriceEditModal(true);
+  const handleCategoryCardClick = (categoryName) => {
+    setSelectedCategory(categoryName);
   };
 
-  const handleSaveQuickPriceEdit = () => {
-    if (quickPriceEdit && quickPriceEdit.currentPrice && parseInt(quickPriceEdit.currentPrice) > 0) {
-      const updatedProducts = {
-        ...products,
-        [selectedCategory]: products[selectedCategory].map(p => {
-          if (p.name === quickPriceEdit.productName) {
-            const updatedSizes = [...p.sizes];
-            const oldPrice = updatedSizes[quickPriceEdit.sizeIndex].price;
-            updatedSizes[quickPriceEdit.sizeIndex].price = parseInt(quickPriceEdit.currentPrice);
-            
-            addRecentEdit(
-              `Updated price: ${quickPriceEdit.productName} (${quickPriceEdit.size}) ₹${oldPrice} → ₹${quickPriceEdit.currentPrice}`
-            );
-            
-            return { ...p, sizes: updatedSizes };
-          }
-          return p;
-        })
-      };
-      setProducts(updatedProducts);
-      setShowQuickPriceEditModal(false);
-      setQuickPriceEdit(null);
-    } else {
-      alert('Please enter a valid price');
+  // Add new size row in edit product modal
+  const handleAddSizeRow = () => {
+    if (editingProduct) {
+      const newIndex = editingProduct.sizes.length;
+      setEditingProduct({
+        ...editingProduct,
+        sizes: [...editingProduct.sizes, { size: '', price: '' }]
+      });
+      // Automatically set the new row to edit mode
+      setEditingRowIndex(newIndex);
     }
   };
 
-  const handleCategoryCardClick = (categoryName) => {
-    setSelectedCategory(categoryName);
+  // Add new size row in new product modal
+  const handleAddNewProductSizeRow = () => {
+    setNewProductData({
+      ...newProductData,
+      sizes: [...newProductData.sizes, { size: '', price: '' }]
+    });
+  };
+
+  // Delete size row in edit product modal
+  const handleDeleteSizeRow = (index) => {
+    if (editingProduct.sizes.length > 1) {
+      const updatedSizes = editingProduct.sizes.filter((_, idx) => idx !== index);
+      setEditingProduct({
+        ...editingProduct,
+        sizes: updatedSizes
+      });
+      // Reset editing if we deleted the row being edited
+      if (editingRowIndex === index) {
+        setEditingRowIndex(null);
+      }
+    } else {
+      alert('Product must have at least one size');
+    }
+  };
+
+  // Delete size row in new product modal
+  const handleDeleteNewProductSizeRow = (index) => {
+    if (newProductData.sizes.length > 1) {
+      const updatedSizes = newProductData.sizes.filter((_, idx) => idx !== index);
+      setNewProductData({
+        ...newProductData,
+        sizes: updatedSizes
+      });
+    } else {
+      alert('Product must have at least one size');
+    }
+  };
+
+  // Toggle edit mode for a specific row
+  const handleToggleEditRow = (index) => {
+    if (editingRowIndex === index) {
+      setEditingRowIndex(null); // Stop editing
+    } else {
+      setEditingRowIndex(index); // Start editing this row
+    }
   };
 
   // Filter and sort products
@@ -506,15 +495,15 @@ const Menu = () => {
         break;
       case 'price-low':
         filtered.sort((a, b) => {
-          const minPriceA = Math.min(...a.sizes.filter(s => s.enabled).map(s => s.price));
-          const minPriceB = Math.min(...b.sizes.filter(s => s.enabled).map(s => s.price));
+          const minPriceA = Math.min(...a.sizes.map(s => s.price));
+          const minPriceB = Math.min(...b.sizes.map(s => s.price));
           return minPriceA - minPriceB;
         });
         break;
       case 'price-high':
         filtered.sort((a, b) => {
-          const maxPriceA = Math.max(...a.sizes.filter(s => s.enabled).map(s => s.price));
-          const maxPriceB = Math.max(...b.sizes.filter(s => s.enabled).map(s => s.price));
+          const maxPriceA = Math.max(...a.sizes.map(s => s.price));
+          const maxPriceB = Math.max(...b.sizes.map(s => s.price));
           return maxPriceB - maxPriceA;
         });
         break;
@@ -774,211 +763,259 @@ const Menu = () => {
                   const IconComp = iconObj.icon;
                   const isSelected = editingCategory.iconName === iconObj.name;
                   return (
-                    <button
-                      key={iconObj.name}
-                      onClick={() => setEditingCategory({ ...editingCategory, iconName: iconObj.name })}
-                      className={`p-3 rounded-lg border-2 transition-all ${
-                        isSelected
-                          ? 'border-teal-500 bg-teal-500/20'
-                          : 'border-border bg-muted hover:bg-teal-500/10 hover:border-teal-400'
-                      }`}
-                    >
-                      <IconComp 
-                        size={20} 
-                        className={`mx-auto transition-colors ${
-                          isSelected ? 'text-teal-600' : 'text-foreground'
-                        }`} 
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowEditCategoryModal(false);
-                  setEditingCategory(null);
-                }}
-                className="flex-1 bg-muted border border-border text-foreground hover:bg-secondary transition-colors px-4 py-2.5 rounded-lg text-sm">
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEditCategory}
-                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white transition-colors border-none px-4 py-2.5 rounded-lg text-sm">
-                Save Changes
-              </button>
-            </div>
+                    <button key={iconObj.name}
+                  onClick={() => setEditingCategory({ ...editingCategory, iconName: iconObj.name })}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    isSelected
+                      ? 'border-teal-500 bg-teal-500/20'
+                      : 'border-border bg-muted hover:bg-teal-500/10 hover:border-teal-400'
+                  }`}
+                >
+                  <IconComp 
+                    size={20} 
+                    className={`mx-auto transition-colors ${
+                      isSelected ? 'text-teal-600' : 'text-foreground'
+                    }`} 
+                  />
+                </button>
+              );
+            })}
           </div>
         </div>
-      )}
 
-      {/* New Product Modal */}
-      {showNewProductModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-card-foreground">Add New Product</h3>
-              <button
-                onClick={() => {
-                  setShowNewProductModal(false);
-                  setNewProductData({ 
-                    name: '', 
-                    sizes: [
-                      { size: 'Small', price: '', enabled: false },
-                      { size: 'Regular', price: '', enabled: true },
-                      { size: 'Medium', price: '', enabled: false },
-                      { size: 'Large', price: '', enabled: false }
-                    ]
-                  });
-                }}
-                className="bg-transparent border-none text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <input
-              type="text"
-              placeholder="Product name"
-              value={newProductData.name}
-              onChange={(e) => setNewProductData({ ...newProductData, name: e.target.value })}
-              className="w-full bg-muted text-foreground border border-border rounded-lg px-4 py-2.5 text-sm mb-4 outline-none"
-            />
-
-            <div className="mb-5">
-              <label className="text-xs text-muted-foreground uppercase tracking-wide mb-2 block">Sizes & Prices</label>
-              {newProductData.sizes.map((sizeData, idx) => (
-                <div key={idx} className="flex items-center gap-3 mb-3">
-                  <input
-                    type="checkbox"
-                    checked={sizeData.enabled}
-                    onChange={(e) => {
-                      const updatedSizes = [...newProductData.sizes];
-                      updatedSizes[idx].enabled = e.target.checked;
-                      setNewProductData({ ...newProductData, sizes: updatedSizes });
-                    }}
-                    className="w-4 h-4 cursor-pointer"
-                  />
-                  <span className="text-foreground text-sm w-16">{sizeData.size}</span>
-                  <input
-                    type="number"
-                    placeholder="Price"
-                    value={sizeData.price}
-                    disabled={!sizeData.enabled}
-                    onChange={(e) => {
-                      const updatedSizes = [...newProductData.sizes];
-                      updatedSizes[idx].price = e.target.value;
-                      setNewProductData({ ...newProductData, sizes: updatedSizes });
-                    }}
-                    className="flex-1 bg-muted text-foreground border border-border rounded-lg px-3 py-2 text-sm outline-none disabled:opacity-50"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowNewProductModal(false);
-                  setNewProductData({ 
-                    name: '', 
-                    sizes: [
-                      { size: 'Small', price: '', enabled: false },
-                      { size: 'Regular', price: '', enabled: true },
-                      { size: 'Medium', price: '', enabled: false },
-                      { size: 'Large', price: '', enabled: false }
-                    ]
-                  });
-                }}
-                className="flex-1 bg-muted border border-border text-foreground hover:bg-secondary transition-colors px-4 py-2.5 rounded-lg text-sm">
-                Cancel
-              </button>
-              <button
-                onClick={handleAddProduct}
-                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white transition-colors border-none px-4 py-2.5 rounded-lg text-sm">
-                Add Product
-              </button>
-            </div>
-          </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              setShowEditCategoryModal(false);
+              setEditingCategory(null);
+            }}
+            className="flex-1 bg-muted border border-border text-foreground hover:bg-secondary transition-colors px-4 py-2.5 rounded-lg text-sm">
+            Cancel
+          </button>
+          <button
+            onClick={handleSaveEditCategory}
+            className="flex-1 bg-teal-600 hover:bg-teal-700 text-white transition-colors border-none px-4 py-2.5 rounded-lg text-sm">
+            Save Changes
+          </button>
         </div>
-      )}
-
-      {/* Edit Product Modal */}
-      {showEditProductModal && editingProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold text-card-foreground">Edit Product</h3>
-              <button
-                onClick={() => {
-                  setShowEditProductModal(false);
-                  setEditingProduct(null);
-                }}
-                className="bg-transparent border-none text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <input
-              type="text"
-              placeholder="Product name"
-              value={editingProduct.name}
-              onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-              className="w-full bg-muted text-foreground border border-border rounded-lg px-4 py-2.5 text-sm mb-4 outline-none"
-            />
-
-            <div className="mb-5">
-              <label className="text-xs text-muted-foreground uppercase tracking-wide mb-2 block">Sizes & Prices</label>
-              {editingProduct.sizes.map((sizeData, idx) => (
-                <div key={idx} className="flex items-center gap-3 mb-3">
-                  <input
-                    type="checkbox"
-                    checked={sizeData.enabled}
-                    onChange={(e) => {
-                      const updatedSizes = [...editingProduct.sizes];
-                      updatedSizes[idx].enabled = e.target.checked;
-                      setEditingProduct({ ...editingProduct, sizes: updatedSizes });
-                    }}
-                    className="w-4 h-4 cursor-pointer"
-                  />
-                  <span className="text-foreground text-sm w-16">{sizeData.size}</span>
-                  <input
-                    type="number"
-                    placeholder="Price"
-                    value={sizeData.price}
-                    disabled={!sizeData.enabled}
-                    onChange={(e) => {
-                      const updatedSizes = [...editingProduct.sizes];
-                      updatedSizes[idx].price = e.target.value;
-                      setEditingProduct({ ...editingProduct, sizes: updatedSizes });
-                    }}
-                    className="flex-1 bg-muted text-foreground border border-border rounded-lg px-3 py-2 text-sm outline-none disabled:opacity-50"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowEditProductModal(false);
-                  setEditingProduct(null);
-                }}
-                className="flex-1 bg-muted border border-border text-foreground hover:bg-secondary transition-colors px-4 py-2.5 rounded-lg text-sm">
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEditProduct}
-                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white transition-colors border-none px-4 py-2.5 rounded-lg text-sm">
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
-  );
-};
+  )}
 
+  {/* New Product Modal */}
+  {showNewProductModal && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-semibold text-card-foreground">Add New Product</h3>
+          <button
+            onClick={() => {
+              setShowNewProductModal(false);
+              setNewProductData({ 
+                name: '', 
+                sizes: [{ size: 'Regular', price: '' }]
+              });
+            }}
+            className="bg-transparent border-none text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        
+        <input
+          type="text"
+          placeholder="Product name"
+          value={newProductData.name}
+          onChange={(e) => setNewProductData({ ...newProductData, name: e.target.value })}
+          className="w-full bg-muted text-foreground border border-border rounded-lg px-4 py-2.5 text-sm mb-4 outline-none"
+        />
+
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">Sizes & Prices</label>
+            <button
+              onClick={handleAddNewProductSizeRow}
+              className="text-teal-500 hover:text-teal-600 transition-colors p-1"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+          {newProductData.sizes.map((sizeData, idx) => (
+            <div key={idx} className="flex items-center gap-2 mb-3">
+              <input
+                type="text"
+                placeholder="Size (e.g., Regular)"
+                value={sizeData.size}
+                onChange={(e) => {
+                  const updatedSizes = [...newProductData.sizes];
+                  updatedSizes[idx].size = e.target.value;
+                  setNewProductData({ ...newProductData, sizes: updatedSizes });
+                }}
+                className="flex-1 bg-muted text-foreground border border-border rounded-lg px-3 py-2 text-sm outline-none"
+              />
+              <input
+                type="number"
+                placeholder="Price"
+                value={sizeData.price}
+                onChange={(e) => {
+                  const updatedSizes = [...newProductData.sizes];
+                  updatedSizes[idx].price = e.target.value;
+                  setNewProductData({ ...newProductData, sizes: updatedSizes });
+                }}
+                className="flex-1 bg-muted text-foreground border border-border rounded-lg px-3 py-2 text-sm outline-none"
+              />
+              <button
+                onClick={() => handleDeleteNewProductSizeRow(idx)}
+                className="text-red-500 hover:text-red-600 transition-colors p-1"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              setShowNewProductModal(false);
+              setNewProductData({ 
+                name: '', 
+                sizes: [{ size: 'Regular', price: '' }]
+              });
+            }}
+            className="flex-1 bg-muted border border-border text-foreground hover:bg-secondary transition-colors px-4 py-2.5 rounded-lg text-sm">
+            Cancel
+          </button>
+          <button
+            onClick={handleAddProduct}
+            className="flex-1 bg-teal-600 hover:bg-teal-700 text-white transition-colors border-none px-4 py-2.5 rounded-lg text-sm">
+            Add Product
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* Edit Product Modal - WITH PENCIL EDIT BEFORE DELETE */}
+  {showEditProductModal && editingProduct && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-semibold text-card-foreground">Edit Product</h3>
+          <button
+            onClick={() => {
+              setShowEditProductModal(false);
+              setEditingProduct(null);
+              setEditingRowIndex(null);
+            }}
+            className="bg-transparent border-none text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        
+        <input
+          type="text"
+          placeholder="Product name"
+          value={editingProduct.name}
+          onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+          className="w-full bg-muted text-foreground border border-border rounded-lg px-4 py-2.5 text-sm mb-4 outline-none"
+        />
+
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs text-muted-foreground uppercase tracking-wide">Sizes & Prices</label>
+            <button
+              onClick={handleAddSizeRow}
+              className="text-teal-500 hover:text-teal-600 transition-colors p-1"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+          {editingProduct.sizes.map((sizeData, idx) => (
+            <div key={idx} className="mb-3">
+              {editingRowIndex === idx ? (
+                // EDIT MODE - Show input fields
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Size (e.g., Regular)"
+                    value={sizeData.size}
+                    onChange={(e) => {
+                      const updatedSizes = [...editingProduct.sizes];
+                      updatedSizes[idx].size = e.target.value;
+                      setEditingProduct({ ...editingProduct, sizes: updatedSizes });
+                    }}
+                    className="flex-1 bg-muted text-foreground border border-border rounded-lg px-3 py-2 text-sm outline-none"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Price"
+                    value={sizeData.price}
+                    onChange={(e) => {
+                      const updatedSizes = [...editingProduct.sizes];
+                      updatedSizes[idx].price = e.target.value;
+                      setEditingProduct({ ...editingProduct, sizes: updatedSizes });
+                    }}
+                    className="flex-1 bg-muted text-foreground border border-border rounded-lg px-3 py-2 text-sm outline-none"
+                  />
+                  <button
+                    onClick={() => handleToggleEditRow(idx)}
+                    className="text-green-500 hover:text-green-600 transition-colors p-1"
+                    title="Done editing"
+                  >
+                    <Check size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSizeRow(idx)}
+                    className="text-red-500 hover:text-red-600 transition-colors p-1"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ) : (
+                // VIEW MODE - Show display with pencil edit button
+                <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2 border border-border">
+                  <div className="flex-1">
+                    <span className="text-foreground text-sm font-medium">{sizeData.size}</span>
+                    <span className="text-foreground text-sm ml-2">₹{sizeData.price}</span>
+                  </div>
+                  <button
+                    onClick={() => handleToggleEditRow(idx)}
+                    className="text-teal-500 hover:text-teal-600 transition-colors p-1"
+                    title="Edit this size"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSizeRow(idx)}
+                    className="text-red-500 hover:text-red-600 transition-colors p-1"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => {
+              setShowEditProductModal(false);
+              setEditingProduct(null);
+              setEditingRowIndex(null);
+            }}
+            className="flex-1 bg-muted border border-border text-foreground hover:bg-secondary transition-colors px-4 py-2.5 rounded-lg text-sm">
+            Cancel
+          </button>
+          <button
+            onClick={handleSaveEditProduct}
+            className="flex-1 bg-teal-600 hover:bg-teal-700 text-white transition-colors border-none px-4 py-2.5 rounded-lg text-sm">
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+</div>);
+};
 export default Menu;
